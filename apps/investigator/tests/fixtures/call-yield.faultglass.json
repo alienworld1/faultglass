@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "title": "Trailing MATCH after a procedure call",
+  "setup": ["CREATE (:N)"],
+  "query": "CALL db.labels() YIELD label MATCH (n)",
+  "observation": { "compareResult": true, "ordering": "unordered" },
+  "metadata": { "source": "https://github.com/FalkorDB/FalkorDB/issues/3279" }
+}

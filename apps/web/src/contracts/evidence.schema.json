@@ -1,0 +1,533 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": { "minimum": 0, "title": "Bytes", "type": "integer" },
+        "id": { "minLength": 1, "title": "Id", "type": "string" },
+        "kind": { "minLength": 1, "title": "Kind", "type": "string" },
+        "mediaType": { "minLength": 1, "title": "Mediatype", "type": "string" },
+        "path": { "minLength": 1, "title": "Path", "type": "string" },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": ["id", "kind", "path", "mediaType", "sha256", "bytes"],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "CheckObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "name": { "minLength": 1, "title": "Name", "type": "string" },
+        "status": {
+          "enum": ["result", "error"],
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            { "$ref": "#/$defs/Result" },
+            { "$ref": "#/$defs/EngineError" }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": ["name", "status", "value"],
+      "title": "CheckObservation",
+      "type": "object"
+    },
+    "Divergence": {
+      "additionalProperties": false,
+      "properties": {
+        "baselineObservationDigest": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Baselineobservationdigest",
+          "type": "string"
+        },
+        "changedDimensions": {
+          "items": { "type": "string" },
+          "title": "Changeddimensions",
+          "type": "array"
+        },
+        "comparisonVersion": {
+          "minLength": 1,
+          "title": "Comparisonversion",
+          "type": "string"
+        },
+        "kind": {
+          "enum": ["status", "error", "result", "postcondition", "mixed"],
+          "title": "Kind",
+          "type": "string"
+        },
+        "signature": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Signature",
+          "type": "string"
+        },
+        "targetObservationDigest": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Targetobservationdigest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "signature",
+        "baselineObservationDigest",
+        "targetObservationDigest",
+        "changedDimensions",
+        "comparisonVersion"
+      ],
+      "title": "Divergence",
+      "type": "object"
+    },
+    "EngineError": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "enum": [
+            "PARSE",
+            "SEMANTIC",
+            "TYPE",
+            "CONSTRAINT",
+            "RUNTIME",
+            "TIMEOUT",
+            "CRASH",
+            "UNKNOWN"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "detail": { "maxLength": 16384, "title": "Detail", "type": "string" },
+        "normalizedCode": {
+          "anyOf": [{ "minLength": 1, "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Normalizedcode"
+        }
+      },
+      "required": ["category", "detail"],
+      "title": "EngineError",
+      "type": "object"
+    },
+    "EngineObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "engineVersionId": {
+          "minLength": 1,
+          "title": "Engineversionid",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [{ "$ref": "#/$defs/EngineError" }, { "type": "null" }],
+          "default": null
+        },
+        "postconditions": {
+          "items": { "$ref": "#/$defs/CheckObservation" },
+          "title": "Postconditions",
+          "type": "array"
+        },
+        "result": {
+          "anyOf": [{ "$ref": "#/$defs/Result" }, { "type": "null" }],
+          "default": null
+        },
+        "status": {
+          "enum": ["result", "error", "timeout", "crash"],
+          "title": "Status",
+          "type": "string"
+        },
+        "timing": { "$ref": "#/$defs/Timing" }
+      },
+      "required": ["engineVersionId", "status", "timing"],
+      "title": "EngineObservation",
+      "type": "object"
+    },
+    "EnginePair": {
+      "additionalProperties": false,
+      "properties": {
+        "baselineId": {
+          "minLength": 1,
+          "title": "Baselineid",
+          "type": "string"
+        },
+        "id": { "minLength": 1, "title": "Id", "type": "string" },
+        "label": { "minLength": 1, "title": "Label", "type": "string" },
+        "targetId": { "minLength": 1, "title": "Targetid", "type": "string" }
+      },
+      "required": ["id", "label", "baselineId", "targetId"],
+      "title": "EnginePair",
+      "type": "object"
+    },
+    "EngineSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "commitSha": {
+          "pattern": "^[a-f0-9]{40}$",
+          "title": "Commitsha",
+          "type": "string"
+        },
+        "id": { "minLength": 1, "title": "Id", "type": "string" },
+        "imageDigest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Imagedigest",
+          "type": "string"
+        },
+        "imageRef": { "minLength": 1, "title": "Imageref", "type": "string" },
+        "label": { "minLength": 1, "title": "Label", "type": "string" },
+        "lineage": {
+          "enum": ["legacy-c", "rust"],
+          "title": "Lineage",
+          "type": "string"
+        },
+        "repository": {
+          "const": "FalkorDB/FalkorDB",
+          "title": "Repository",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "repository",
+        "commitSha",
+        "lineage",
+        "imageRef",
+        "imageDigest"
+      ],
+      "title": "EngineSpec",
+      "type": "object"
+    },
+    "Expectation": {
+      "additionalProperties": false,
+      "properties": {
+        "errorCategory": {
+          "anyOf": [
+            {
+              "enum": [
+                "PARSE",
+                "SEMANTIC",
+                "TYPE",
+                "CONSTRAINT",
+                "RUNTIME",
+                "TIMEOUT",
+                "CRASH",
+                "UNKNOWN"
+              ],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Errorcategory"
+        },
+        "kind": {
+          "enum": [
+            "baseline_matches_expected",
+            "explicit_result",
+            "explicit_error",
+            "none"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [{ "$ref": "#/$defs/ExpectedResult" }, { "type": "null" }],
+          "default": null
+        }
+      },
+      "required": ["kind"],
+      "title": "Expectation",
+      "type": "object"
+    },
+    "ExpectedResult": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": { "type": "string" },
+          "title": "Columns",
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "items": { "$ref": "#/$defs/JsonValue" },
+            "type": "array"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": ["columns", "rows"],
+      "title": "ExpectedResult",
+      "type": "object"
+    },
+    "Failure": {
+      "additionalProperties": false,
+      "properties": {
+        "code": { "minLength": 1, "title": "Code", "type": "string" },
+        "engineRole": {
+          "anyOf": [
+            { "enum": ["baseline", "target"], "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Enginerole"
+        },
+        "message": { "minLength": 1, "title": "Message", "type": "string" },
+        "stage": { "minLength": 1, "title": "Stage", "type": "string" }
+      },
+      "required": ["code", "stage", "message"],
+      "title": "Failure",
+      "type": "object"
+    },
+    "FaultCase": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "anyOf": [
+            { "maxLength": 4000, "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "expectation": {
+          "anyOf": [{ "$ref": "#/$defs/Expectation" }, { "type": "null" }],
+          "default": null
+        },
+        "id": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Id"
+        },
+        "metadata": {
+          "anyOf": [{ "$ref": "#/$defs/Metadata" }, { "type": "null" }],
+          "default": null
+        },
+        "observation": { "$ref": "#/$defs/ObservationSpec" },
+        "parameters": {
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "query": { "minLength": 1, "title": "Query", "type": "string" },
+        "schemaVersion": {
+          "const": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "setup": {
+          "items": { "type": "string" },
+          "maxItems": 32,
+          "title": "Setup",
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": ["schemaVersion", "title", "setup", "query", "observation"],
+      "title": "FaultCase",
+      "type": "object"
+    },
+    "JsonValue": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" },
+        { "items": { "$ref": "#/$defs/JsonValue" }, "type": "array" },
+        {
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" },
+          "type": "object"
+        }
+      ]
+    },
+    "Metadata": {
+      "additionalProperties": false,
+      "properties": {
+        "notes": {
+          "anyOf": [
+            { "maxLength": 4000, "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "source": {
+          "anyOf": [
+            { "maxLength": 4000, "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Source"
+        }
+      },
+      "title": "Metadata",
+      "type": "object"
+    },
+    "ObservationSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "compareResult": { "title": "Compareresult", "type": "boolean" },
+        "ordering": {
+          "enum": ["auto", "ordered", "unordered"],
+          "title": "Ordering",
+          "type": "string"
+        },
+        "postconditions": {
+          "items": { "$ref": "#/$defs/StateCheck" },
+          "maxItems": 8,
+          "title": "Postconditions",
+          "type": "array"
+        }
+      },
+      "required": ["compareResult", "ordering"],
+      "title": "ObservationSpec",
+      "type": "object"
+    },
+    "PairedObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": { "$ref": "#/$defs/EngineObservation" },
+        "target": { "$ref": "#/$defs/EngineObservation" }
+      },
+      "required": ["baseline", "target"],
+      "title": "PairedObservation",
+      "type": "object"
+    },
+    "Result": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": { "type": "string" },
+          "title": "Columns",
+          "type": "array"
+        },
+        "ordered": { "title": "Ordered", "type": "boolean" },
+        "rows": {
+          "items": {
+            "items": { "$ref": "#/$defs/JsonValue" },
+            "type": "array"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": ["columns", "rows", "ordered"],
+      "title": "Result",
+      "type": "object"
+    },
+    "RunReport": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "items": { "$ref": "#/$defs/ArtifactRef" },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "caseContentHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Casecontenthash",
+          "type": "string"
+        },
+        "divergence": {
+          "anyOf": [{ "$ref": "#/$defs/Divergence" }, { "type": "null" }],
+          "default": null
+        },
+        "failure": {
+          "anyOf": [{ "$ref": "#/$defs/Failure" }, { "type": "null" }],
+          "default": null
+        },
+        "finishedAt": {
+          "minLength": 1,
+          "title": "Finishedat",
+          "type": "string"
+        },
+        "observations": {
+          "anyOf": [
+            { "$ref": "#/$defs/PairedObservation" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "oracleAssessment": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "enum": ["match", "mismatch", "not_evaluated"],
+                "type": "string"
+              },
+              "type": "object"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Oracleassessment"
+        },
+        "outcome": {
+          "enum": ["reproduced", "not_reproduced", "failed"],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "pairId": { "minLength": 1, "title": "Pairid", "type": "string" },
+        "runId": { "minLength": 1, "title": "Runid", "type": "string" },
+        "startedAt": { "minLength": 1, "title": "Startedat", "type": "string" }
+      },
+      "required": [
+        "runId",
+        "pairId",
+        "caseContentHash",
+        "outcome",
+        "startedAt",
+        "finishedAt",
+        "artifacts"
+      ],
+      "title": "RunReport",
+      "type": "object"
+    },
+    "StateCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "query": { "minLength": 1, "title": "Query", "type": "string" }
+      },
+      "required": ["name", "query"],
+      "title": "StateCheck",
+      "type": "object"
+    },
+    "Timing": {
+      "additionalProperties": false,
+      "properties": {
+        "durationMs": { "minimum": 0, "title": "Durationms", "type": "number" }
+      },
+      "required": ["durationMs"],
+      "title": "Timing",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "case": { "$ref": "#/$defs/FaultCase" },
+    "engine": { "$ref": "#/$defs/EngineSpec" },
+    "pair": { "$ref": "#/$defs/EnginePair" },
+    "report": { "$ref": "#/$defs/RunReport" }
+  },
+  "required": ["case", "engine", "pair", "report"],
+  "title": "EvidenceContracts",
+  "type": "object"
+}

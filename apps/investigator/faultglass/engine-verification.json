@@ -1,0 +1,49 @@
+{
+  "clientVersion": "falkordb-py 1.8.0",
+  "engines": [
+    {
+      "commitSha": "e070d806e0ce967d74e1c3b891997b5b830cce43",
+      "engineBinarySha256": "e013b40c41a978050253e6192dc246e90c138b1242d3a7c5ae7d126a7c2b3444",
+      "engineId": "c-4.22.0",
+      "localImageId": "sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b",
+      "manifestDigest": "sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b",
+      "sourceUrls": [
+        "https://api.github.com/repos/FalkorDB/FalkorDB/git/ref/tags/v4.22.0",
+        "https://github.com/FalkorDB/FalkorDB/blob/e070d806e0ce967d74e1c3b891997b5b830cce43/.github/workflows/release-image.yml",
+        "https://api.github.com/repos/FalkorDB/FalkorDB/releases/tags/v4.22.0"
+      ]
+    },
+    {
+      "commitSha": "b033aecc6e391b6730fe839f7b576f774f840b3a",
+      "engineId": "rust-b033aec",
+      "localImageId": "sha256:9367c99cdc338d752d6976653c5e68d227b5b6b03ab4938d6eaeb3c4e1607e24",
+      "manifestDigest": "sha256:9367c99cdc338d752d6976653c5e68d227b5b6b03ab4938d6eaeb3c4e1607e24",
+      "sourceUrls": [
+        "https://github.com/FalkorDB/FalkorDB/blob/b033aecc6e391b6730fe839f7b576f774f840b3a/.github/workflows/rust-push.yml",
+        "https://github.com/FalkorDB/FalkorDB/pkgs/container/falkordb-server"
+      ]
+    }
+  ],
+  "platform": "linux/amd64",
+  "repeatability": {
+    "pairId": "call-yield-c-rust",
+    "receipts": [
+      {
+        "manifestSha256": "faa6baf44044450d23f0f728e28a424bcdfbb5082bf5576912e624ae63ce3738",
+        "runId": "800fb8a6-1a64-4e82-91e9-9f1c627f69a2"
+      },
+      {
+        "manifestSha256": "b54a13ac7ae0b2381210cd094e32c5eb39838a07e587e77b3133c6810a611e07",
+        "runId": "7af46ccd-ff6d-4d75-a210-98539c7a9a98"
+      },
+      {
+        "manifestSha256": "5ef65c03f856ec1817f5ae3f623785b938cfef6970f84d60d7a7420c123e3c3f",
+        "runId": "3597f4ff-8275-48ac-8cfd-309e279bca1e"
+      }
+    ],
+    "seedContentHash": "9c68ff02a8a966dab6de53c5214c8a3921aa150b2c5a6fc49a1c57464db515db",
+    "signature": "b7ea32f6f99642a2a22f0e5c9f01983231578dff09bed4d05288931fdf89e543"
+  },
+  "transport": "Stock redis-cli --json over Docker exec to container loopback; official Graph and QueryResult adapters on the trusted host.",
+  "verifiedAt": "2026-10-14T20:17:15.214625+00:00"
+}

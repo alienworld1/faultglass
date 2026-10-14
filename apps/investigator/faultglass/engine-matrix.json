@@ -1,0 +1,31 @@
+{
+  "platform": "linux/amd64",
+  "engines": [
+    {
+      "id": "c-4.22.0",
+      "label": "FalkorDB C 4.22.0",
+      "repository": "FalkorDB/FalkorDB",
+      "commitSha": "e070d806e0ce967d74e1c3b891997b5b830cce43",
+      "lineage": "legacy-c",
+      "imageRef": "falkordb/falkordb@sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b",
+      "imageDigest": "sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b"
+    },
+    {
+      "id": "rust-b033aec",
+      "label": "FalkorDB Rust b033aec",
+      "repository": "FalkorDB/FalkorDB",
+      "commitSha": "b033aecc6e391b6730fe839f7b576f774f840b3a",
+      "lineage": "rust",
+      "imageRef": "ghcr.io/falkordb/falkordb-server@sha256:9367c99cdc338d752d6976653c5e68d227b5b6b03ab4938d6eaeb3c4e1607e24",
+      "imageDigest": "sha256:9367c99cdc338d752d6976653c5e68d227b5b6b03ab4938d6eaeb3c4e1607e24"
+    }
+  ],
+  "pairs": [
+    {
+      "id": "call-yield-c-rust",
+      "label": "C 4.22.0 / Rust b033aec",
+      "baselineId": "c-4.22.0",
+      "targetId": "rust-b033aec"
+    }
+  ]
+}
