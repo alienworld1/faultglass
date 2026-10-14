@@ -79,7 +79,7 @@ def test_real_readonly_state_parameters_graph_values_and_reset(client, tmp_path)
         "schemaVersion": 1,
         "title": "State and typed values",
         "setup": ["CREATE (:N {v:1})-[:R {value:2}]->(:N {v:2})"],
-        "query": "MATCH p=(a)-[r]->(b) RETURN a, r, p, $v AS value",
+        "query": "MATCH p=(a)-[r]->(b) CREATE (:Added) RETURN a, r, p, $v AS value",
         "parameters": {"v": {"a": [None, True, 2**60, 1.5]}},
         "observation": {
             "compareResult": True,
@@ -95,10 +95,13 @@ def test_real_readonly_state_parameters_graph_values_and_reset(client, tmp_path)
             data, read_case(data), "call-yield-c-rust", tmp_path
         )
         assert code == 0 and report.outcome == "not_reproduced"
-        assert (
-            report.observations.baseline.postconditions[0].value.rows[0][0]["value"]
-            == "2"
-        )
+        for role in ("baseline", "target"):
+            assert (
+                getattr(report.observations, role)
+                .postconditions[0]
+                .value.rows[0][0]["value"]
+                == "3"
+            )
         assert verify(path) == 6
 
 
