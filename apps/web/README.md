@@ -1,35 +1,15 @@
-# React + TypeScript + Vite
+# FaultGlass web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A minimal, accessible product shell for comparing reproducible cases across FalkorDB engines.
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm lint
+pnpm build
+pnpm format:check
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Use pnpm 11.25.0. `pnpm install` prepares the pinned Node 24.19.0 runtime for project commands through [pnpm runtime management](https://pnpm.io/package_json#devenginesruntime). The frontend uses React, Vite, the React compiler, Tailwind, and oxlint. Semantic color and font tokens live in `src/globals.css`; system fonts keep the shell usable without a remote font service.
+
+Execution is currently available through the [local comparison command](../investigator/README.md). Reloading the shell does not start a comparison. Shared contracts are generated from the authoritative Python models.
