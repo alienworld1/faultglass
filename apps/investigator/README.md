@@ -92,7 +92,7 @@ pnpm --dir apps/web format:check
 pnpm --dir apps/web dev
 ```
 
-Open the frontend at the printed address and check 375px, 1024px, and 1440px. The static shell has no execution control; refreshing starts no run. To regenerate the shared contracts after changing Python models:
+Open the frontend at the printed address and check 375px, 1024px, and 1440px. The browser supports case intake and durable live investigations; refreshing an investigation reads saved progress without starting another run. See [saved investigations](INVESTIGATIONS.md) for the worker, replay, cancellation, and hosting setup. To regenerate the shared contracts after changing Python models:
 
 ```sh
 cd apps/investigator
@@ -102,4 +102,4 @@ pnpm --dir ../web contracts
 pnpm --dir ../web format
 ```
 
-The frontend JSON Schema and TypeScript are generated from the Python contracts. CLI execution remains local; the API exposes only health and curated matrix reads. Browser execution, planning, reduction, and durable jobs are intentionally absent. Context storage is available separately through `python -m faultglass.context`; it does not change execution or the read-only API.
+The frontend JSON Schema and TypeScript are generated from the Python contracts. CLI execution remains local. The API admits durable investigations for a separate persistent worker, with snapshots, cancellation, evidence, and SSE replay. Context storage is available through `python -m faultglass.context`; reduction, classification, and exports require their own verified producers.
