@@ -78,13 +78,26 @@ class Lease:
 
 
 class ArtifactStore:
-    def __init__(self, root, run_id, budget):
+    def __init__(self, root, run_id, budget, *, runtime_existing=False):
         if str(UUID(run_id)) != run_id:
             raise ValueError("Use a generated run identity.")
         self.root, root_fd = open_private_root(root)
         self.path = self.root / run_id
         try:
-            os.mkdir(run_id, mode=0o700, dir_fd=root_fd)
+            try:
+                os.mkdir(run_id, mode=0o700, dir_fd=root_fd)
+            except FileExistsError:
+                if not runtime_existing:
+                    raise
+                with os.scandir(self.path) as entries:
+                    if any(
+                        entry.name != "runtime"
+                        or not entry.is_dir(follow_symlinks=False)
+                        for entry in entries
+                    ):
+                        raise ValueError(
+                            "Reserved evidence folder already contains comparison evidence."
+                        ) from None
             self.fd = os.open(
                 run_id, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root_fd
             )

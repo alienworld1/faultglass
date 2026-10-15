@@ -55,8 +55,8 @@ def factors(features, targets, row=None, version_affinity=0.0, cost_class="small
     return result
 
 
-def rank_candidates(case, snapshot, save_output):
-    candidates, rejections, seen = [], [], set()
+def rank_candidates(case, snapshot, save_output, *, tried_outputs=()):
+    candidates, rejections, seen = [], [], set(tried_outputs)
     known = {item.definition.id for item in snapshot.catalog}
     for row in snapshot.history:
         if row.probe_id not in known:

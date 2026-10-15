@@ -1,5 +1,24 @@
 {
   "$defs": {
+    "Admission": {
+      "additionalProperties": false,
+      "properties": {
+        "caseFile": {
+          "maxLength": 262144,
+          "title": "Casefile",
+          "type": "string"
+        },
+        "pairId": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Pairid",
+          "type": "string"
+        }
+      },
+      "required": ["caseFile", "pairId"],
+      "title": "Admission",
+      "type": "object"
+    },
     "ArtifactRef": {
       "additionalProperties": false,
       "properties": {
@@ -16,6 +35,92 @@
       },
       "required": ["id", "kind", "path", "mediaType", "sha256", "bytes"],
       "title": "ArtifactRef",
+      "type": "object"
+    },
+    "Budget": {
+      "additionalProperties": false,
+      "properties": {
+        "chargedBytes": {
+          "default": 0,
+          "maximum": 67108864,
+          "minimum": 0,
+          "title": "Chargedbytes",
+          "type": "integer"
+        },
+        "maxArtifactBytes": {
+          "const": 67108864,
+          "default": 67108864,
+          "title": "Maxartifactbytes",
+          "type": "integer"
+        },
+        "maxEvents": {
+          "const": 512,
+          "default": 512,
+          "title": "Maxevents",
+          "type": "integer"
+        },
+        "maxProbes": {
+          "const": 4,
+          "default": 4,
+          "title": "Maxprobes",
+          "type": "integer"
+        },
+        "maxSeconds": {
+          "const": 900,
+          "default": 900,
+          "title": "Maxseconds",
+          "type": "integer"
+        },
+        "reducerCandidates": {
+          "const": 0,
+          "default": 0,
+          "title": "Reducercandidates",
+          "type": "integer"
+        },
+        "reservedProbes": {
+          "default": 0,
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Reservedprobes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxProbes",
+        "maxSeconds",
+        "maxArtifactBytes",
+        "maxEvents",
+        "reducerCandidates",
+        "reservedProbes",
+        "chargedBytes"
+      ],
+      "title": "Budget",
+      "type": "object"
+    },
+    "Capabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "classifying": {
+          "const": false,
+          "default": false,
+          "title": "Classifying",
+          "type": "boolean"
+        },
+        "exporting": {
+          "const": false,
+          "default": false,
+          "title": "Exporting",
+          "type": "boolean"
+        },
+        "reducing": {
+          "const": false,
+          "default": false,
+          "title": "Reducing",
+          "type": "boolean"
+        }
+      },
+      "required": ["reducing", "classifying", "exporting"],
+      "title": "Capabilities",
       "type": "object"
     },
     "CheckObservation": {
@@ -37,6 +142,120 @@
       },
       "required": ["name", "status", "value"],
       "title": "CheckObservation",
+      "type": "object"
+    },
+    "Decision": {
+      "additionalProperties": false,
+      "properties": {
+        "admission_seconds": {
+          "default": 120,
+          "maximum": 120,
+          "minimum": 1,
+          "title": "Admission Seconds",
+          "type": "integer"
+        },
+        "candidates": {
+          "items": { "$ref": "#/$defs/RankedCandidate" },
+          "maxItems": 2,
+          "title": "Candidates",
+          "type": "array"
+        },
+        "created_at": { "title": "Created At", "type": "string" },
+        "fingerprint_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Fingerprint Id",
+          "type": "string"
+        },
+        "investigation_id": { "title": "Investigation Id", "type": "string" },
+        "limits": { "$ref": "#/$defs/RunLimits" },
+        "novel": { "title": "Novel", "type": "boolean" },
+        "outcome": {
+          "enum": ["selected", "not_reproduced", "unresolved"],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "planner_version": {
+          "const": "planner-v1",
+          "default": "planner-v1",
+          "title": "Planner Version",
+          "type": "string"
+        },
+        "registry_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Registry Sha256",
+          "type": "string"
+        },
+        "rejections": {
+          "items": { "$ref": "#/$defs/Rejection" },
+          "maxItems": 202,
+          "title": "Rejections",
+          "type": "array"
+        },
+        "scope": { "$ref": "#/$defs/VersionScope" },
+        "seed_case_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Seed Case Id",
+          "type": "string"
+        },
+        "seed_manifest_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Seed Manifest Sha256",
+          "type": "string"
+        },
+        "selected_probe_id": {
+          "anyOf": [
+            { "maxLength": 160, "minLength": 1, "type": "string" },
+            { "type": "null" }
+          ],
+          "title": "Selected Probe Id"
+        },
+        "selection_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Selection Id",
+          "type": "string"
+        },
+        "sequence": {
+          "default": 1,
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "source_snapshot_ref": { "$ref": "#/$defs/EvidenceReference" },
+        "terminal_reason": {
+          "anyOf": [
+            {
+              "enum": ["no_applicable_probe", "budget_exhausted"],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Terminal Reason"
+        },
+        "transformed_case_ref": {
+          "anyOf": [{ "$ref": "#/$defs/EvidenceReference" }, { "type": "null" }]
+        }
+      },
+      "required": [
+        "selection_id",
+        "investigation_id",
+        "registry_sha256",
+        "seed_case_id",
+        "fingerprint_id",
+        "seed_manifest_sha256",
+        "scope",
+        "created_at",
+        "novel",
+        "candidates",
+        "rejections",
+        "selected_probe_id",
+        "outcome",
+        "limits",
+        "source_snapshot_ref",
+        "transformed_case_ref"
+      ],
+      "title": "Decision",
       "type": "object"
     },
     "Divergence": {
@@ -197,6 +416,183 @@
         "imageDigest"
       ],
       "title": "EngineSpec",
+      "type": "object"
+    },
+    "Event": {
+      "additionalProperties": false,
+      "properties": {
+        "at": { "title": "At", "type": "string" },
+        "data": { "$ref": "#/$defs/EventData" },
+        "id": { "title": "Id", "type": "string" },
+        "investigationId": { "title": "Investigationid", "type": "string" },
+        "phase": { "$ref": "#/$defs/Status" },
+        "sequence": {
+          "maximum": 512,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "summary": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "investigation.created",
+            "phase.started",
+            "fingerprint.completed",
+            "graph.read",
+            "probe.candidates",
+            "probe.selected",
+            "engine.observed",
+            "divergence.detected",
+            "graph.write",
+            "cancellation.requested",
+            "investigation.not_reproduced",
+            "investigation.unresolved",
+            "investigation.cancelled",
+            "investigation.failed"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "investigationId",
+        "sequence",
+        "type",
+        "at",
+        "phase",
+        "summary",
+        "data"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "EventData": {
+      "additionalProperties": false,
+      "properties": {
+        "childId": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Childid"
+        },
+        "probeSequence": {
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Probesequence",
+          "type": "integer"
+        },
+        "references": {
+          "items": { "$ref": "#/$defs/EvidenceReference" },
+          "maxItems": 3,
+          "title": "References",
+          "type": "array"
+        },
+        "revision": { "minimum": 1, "title": "Revision", "type": "integer" },
+        "status": { "$ref": "#/$defs/Status" }
+      },
+      "required": ["revision", "status", "probeSequence"],
+      "title": "EventData",
+      "type": "object"
+    },
+    "EvidenceItem": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "anyOf": [
+            { "maxLength": 131072, "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Decision"
+        },
+        "kind": {
+          "enum": ["seed", "selection", "result"],
+          "title": "Kind",
+          "type": "string"
+        },
+        "observations": {
+          "anyOf": [{ "$ref": "#/$defs/PairedSummary" }, { "type": "null" }],
+          "default": null
+        },
+        "query": {
+          "anyOf": [
+            { "maxLength": 16384, "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Query"
+        },
+        "references": {
+          "items": { "$ref": "#/$defs/EvidenceReference" },
+          "maxItems": 10,
+          "title": "References",
+          "type": "array"
+        },
+        "sequence": {
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        }
+      },
+      "required": ["sequence", "kind", "references"],
+      "title": "EvidenceItem",
+      "type": "object"
+    },
+    "EvidencePage": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": { "$ref": "#/$defs/EvidenceItem" },
+          "maxItems": 25,
+          "title": "Items",
+          "type": "array"
+        },
+        "nextCursor": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "title": "Nextcursor"
+        },
+        "revision": { "title": "Revision", "type": "integer" }
+      },
+      "required": ["revision", "items", "nextCursor"],
+      "title": "EvidencePage",
+      "type": "object"
+    },
+    "EvidenceReference": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": { "minimum": 0, "title": "Bytes", "type": "integer" },
+        "id": { "minLength": 1, "title": "Id", "type": "string" },
+        "kind": { "minLength": 1, "title": "Kind", "type": "string" },
+        "mediaType": { "minLength": 1, "title": "Mediatype", "type": "string" },
+        "owner": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "path": { "minLength": 1, "title": "Path", "type": "string" },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "path",
+        "mediaType",
+        "sha256",
+        "bytes",
+        "owner"
+      ],
+      "title": "EvidenceReference",
       "type": "object"
     },
     "Expectation": {
@@ -390,6 +786,45 @@
       "title": "ObservationSpec",
       "type": "object"
     },
+    "ObservationSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": { "type": "string" },
+          "maxItems": 32,
+          "title": "Columns",
+          "type": "array"
+        },
+        "detail": {
+          "anyOf": [{ "maxLength": 256, "type": "string" }, { "type": "null" }],
+          "title": "Detail"
+        },
+        "engineVersionId": { "title": "Engineversionid", "type": "string" },
+        "errorCategory": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "title": "Errorcategory"
+        },
+        "rowCount": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "title": "Rowcount"
+        },
+        "status": {
+          "enum": ["result", "error", "timeout", "crash"],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "engineVersionId",
+        "status",
+        "rowCount",
+        "columns",
+        "errorCategory",
+        "detail"
+      ],
+      "title": "ObservationSummary",
+      "type": "object"
+    },
     "PairedObservation": {
       "additionalProperties": false,
       "properties": {
@@ -398,6 +833,292 @@
       },
       "required": ["baseline", "target"],
       "title": "PairedObservation",
+      "type": "object"
+    },
+    "PairedSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": { "$ref": "#/$defs/ObservationSummary" },
+        "target": { "$ref": "#/$defs/ObservationSummary" }
+      },
+      "required": ["baseline", "target"],
+      "title": "PairedSummary",
+      "type": "object"
+    },
+    "ProbeEligibility": {
+      "additionalProperties": false,
+      "properties": {
+        "applicable": { "title": "Applicable", "type": "boolean" },
+        "input_case_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Input Case Id",
+          "type": "string"
+        },
+        "output_case_id": {
+          "anyOf": [
+            { "pattern": "^[a-f0-9]{64}$", "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Output Case Id"
+        },
+        "probe_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Probe Id",
+          "type": "string"
+        },
+        "reason_code": {
+          "enum": [
+            "applicable",
+            "unsupported_shape",
+            "unmet_precondition",
+            "disabled",
+            "invalid_output",
+            "unchanged_output"
+          ],
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "transformed_case_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/EvidenceReference" },
+            { "type": "null" }
+          ],
+          "default": null
+        }
+      },
+      "required": ["probe_id", "applicable", "reason_code", "input_case_id"],
+      "title": "ProbeEligibility",
+      "type": "object"
+    },
+    "RankedCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": { "minimum": 0, "title": "Attempts", "type": "integer" },
+        "avg_cost_ms": {
+          "minimum": 0,
+          "title": "Avg Cost Ms",
+          "type": "number"
+        },
+        "chosen_history_key": {
+          "anyOf": [
+            { "maxLength": 4096, "minLength": 1, "type": "string" },
+            { "type": "null" }
+          ],
+          "title": "Chosen History Key"
+        },
+        "cost_class": {
+          "enum": ["small", "medium", "large"],
+          "title": "Cost Class",
+          "type": "string"
+        },
+        "definition_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Definition Sha256",
+          "type": "string"
+        },
+        "edit": { "$ref": "#/$defs/SourceEdit" },
+        "eligibility": { "$ref": "#/$defs/ProbeEligibility" },
+        "feature_fit": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Feature Fit",
+          "type": "number"
+        },
+        "historical_yield": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Historical Yield",
+          "type": "number"
+        },
+        "input_case_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Input Case Id",
+          "type": "string"
+        },
+        "matched_feature_ids": {
+          "items": { "type": "string" },
+          "title": "Matched Feature Ids",
+          "type": "array"
+        },
+        "normalized_cost": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Normalized Cost",
+          "type": "number"
+        },
+        "novelty": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Novelty",
+          "type": "number"
+        },
+        "output_case_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Output Case Id",
+          "type": "string"
+        },
+        "pair_cap_ms": {
+          "const": 60000,
+          "default": 60000,
+          "title": "Pair Cap Ms",
+          "type": "integer"
+        },
+        "probe_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Probe Id",
+          "type": "string"
+        },
+        "rank": { "minimum": 1, "title": "Rank", "type": "integer" },
+        "reason": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "source": {
+          "enum": ["history", "structural"],
+          "title": "Source",
+          "type": "string"
+        },
+        "successes": { "minimum": 0, "title": "Successes", "type": "integer" },
+        "target_feature_ids": {
+          "items": { "type": "string" },
+          "title": "Target Feature Ids",
+          "type": "array"
+        },
+        "template_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Template Version",
+          "type": "string"
+        },
+        "transformed_case_ref": { "$ref": "#/$defs/EvidenceReference" },
+        "utility": { "title": "Utility", "type": "number" },
+        "version_affinity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Version Affinity",
+          "type": "number"
+        }
+      },
+      "required": [
+        "eligibility",
+        "probe_id",
+        "template_version",
+        "definition_sha256",
+        "input_case_id",
+        "output_case_id",
+        "target_feature_ids",
+        "matched_feature_ids",
+        "source",
+        "chosen_history_key",
+        "attempts",
+        "successes",
+        "avg_cost_ms",
+        "cost_class",
+        "reason",
+        "feature_fit",
+        "historical_yield",
+        "version_affinity",
+        "novelty",
+        "normalized_cost",
+        "utility",
+        "rank",
+        "edit",
+        "transformed_case_ref"
+      ],
+      "title": "RankedCandidate",
+      "type": "object"
+    },
+    "Reason": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "no_applicable_probe",
+            "budget_exhausted",
+            "analysis_unavailable",
+            "not_reproduced",
+            "cancelled",
+            "recovery_required",
+            "integrity_failure",
+            "execution_failure",
+            "storage_failure",
+            "cleanup_required",
+            "registry_changed"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": ["code", "message"],
+      "title": "Reason",
+      "type": "object"
+    },
+    "Rejection": {
+      "additionalProperties": false,
+      "properties": {
+        "applicable": {
+          "const": false,
+          "default": false,
+          "title": "Applicable",
+          "type": "boolean"
+        },
+        "history_key": {
+          "anyOf": [
+            { "maxLength": 4096, "minLength": 1, "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "History Key"
+        },
+        "input_case_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Input Case Id",
+          "type": "string"
+        },
+        "output_case_id": {
+          "default": null,
+          "title": "Output Case Id",
+          "type": "null"
+        },
+        "probe_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Probe Id",
+          "type": "string"
+        },
+        "reason_code": {
+          "enum": [
+            "unsupported_shape",
+            "unmet_precondition",
+            "disabled",
+            "invalid_output",
+            "unchanged_output",
+            "duplicate_output",
+            "unknown_definition",
+            "incompatible_scope"
+          ],
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "transformed_case_ref": {
+          "default": null,
+          "title": "Transformed Case Ref",
+          "type": "null"
+        }
+      },
+      "required": ["input_case_id", "probe_id", "reason_code"],
+      "title": "Rejection",
       "type": "object"
     },
     "Result": {
@@ -420,6 +1141,69 @@
       },
       "required": ["columns", "rows", "ordered"],
       "title": "Result",
+      "type": "object"
+    },
+    "RunLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactBytes": {
+          "default": 8388608,
+          "exclusiveMinimum": 0,
+          "maximum": 8388608,
+          "title": "Artifactbytes",
+          "type": "integer"
+        },
+        "cleanupSeconds": {
+          "default": 10,
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "title": "Cleanupseconds",
+          "type": "integer"
+        },
+        "logBytes": {
+          "default": 262144,
+          "exclusiveMinimum": 0,
+          "maximum": 262144,
+          "title": "Logbytes",
+          "type": "integer"
+        },
+        "outputBytes": {
+          "default": 1048576,
+          "exclusiveMinimum": 0,
+          "maximum": 1048576,
+          "title": "Outputbytes",
+          "type": "integer"
+        },
+        "pairSeconds": {
+          "default": 60,
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "title": "Pairseconds",
+          "type": "integer"
+        },
+        "querySeconds": {
+          "default": 5,
+          "exclusiveMinimum": 0,
+          "maximum": 5,
+          "title": "Queryseconds",
+          "type": "integer"
+        },
+        "rows": {
+          "default": 1000,
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "startupSeconds": {
+          "default": 20,
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "title": "Startupseconds",
+          "type": "integer"
+        }
+      },
+      "title": "RunLimits",
       "type": "object"
     },
     "RunReport": {
@@ -490,6 +1274,154 @@
       "title": "RunReport",
       "type": "object"
     },
+    "Snapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "budget": { "$ref": "#/$defs/Budget" },
+        "cancelRequestedAt": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Cancelrequestedat"
+        },
+        "capabilities": { "$ref": "#/$defs/Capabilities" },
+        "createdAt": { "title": "Createdat", "type": "string" },
+        "deadlineAt": { "title": "Deadlineat", "type": "string" },
+        "engines": {
+          "items": { "$ref": "#/$defs/EngineSpec" },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Engines",
+          "type": "array"
+        },
+        "evidence": {
+          "items": { "$ref": "#/$defs/EvidenceReference" },
+          "maxItems": 80,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "fingerprintId": {
+          "anyOf": [
+            { "pattern": "^[a-f0-9]{64}$", "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Fingerprintid"
+        },
+        "finishedAt": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Finishedat"
+        },
+        "id": { "title": "Id", "type": "string" },
+        "lastEventSequence": {
+          "default": 1,
+          "maximum": 512,
+          "minimum": 0,
+          "title": "Lasteventsequence",
+          "type": "integer"
+        },
+        "pairId": { "title": "Pairid", "type": "string" },
+        "phase": { "$ref": "#/$defs/Status", "default": "QUEUED" },
+        "phaseAttempt": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Phaseattempt",
+          "type": "integer"
+        },
+        "probeSequence": {
+          "default": 0,
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Probesequence",
+          "type": "integer"
+        },
+        "revision": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "seedEvidenceId": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Seedevidenceid"
+        },
+        "startedAt": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Startedat"
+        },
+        "status": { "$ref": "#/$defs/Status", "default": "QUEUED" },
+        "terminalReason": {
+          "anyOf": [{ "$ref": "#/$defs/Reason" }, { "type": "null" }],
+          "default": null
+        },
+        "title": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "updatedAt": { "title": "Updatedat", "type": "string" },
+        "workspaceId": {
+          "const": "falkordb-core",
+          "default": "falkordb-core",
+          "title": "Workspaceid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "id",
+        "workspaceId",
+        "title",
+        "pairId",
+        "engines",
+        "status",
+        "revision",
+        "createdAt",
+        "updatedAt",
+        "startedAt",
+        "finishedAt",
+        "deadlineAt",
+        "phase",
+        "phaseAttempt",
+        "fingerprintId",
+        "seedEvidenceId",
+        "probeSequence",
+        "cancelRequestedAt",
+        "budget",
+        "terminalReason",
+        "evidence",
+        "lastEventSequence",
+        "capabilities"
+      ],
+      "title": "Snapshot",
+      "type": "object"
+    },
+    "SourceEdit": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "title": "After",
+          "type": "string"
+        },
+        "before": { "maxLength": 16384, "title": "Before", "type": "string" },
+        "end": { "minimum": 0, "title": "End", "type": "integer" },
+        "start": { "minimum": 0, "title": "Start", "type": "integer" }
+      },
+      "required": ["start", "end", "before", "after"],
+      "title": "SourceEdit",
+      "type": "object"
+    },
     "StateCheck": {
       "additionalProperties": false,
       "properties": {
@@ -510,6 +1442,25 @@
       "title": "StateCheck",
       "type": "object"
     },
+    "Status": {
+      "enum": [
+        "QUEUED",
+        "FINGERPRINTING",
+        "REPRODUCING",
+        "PLANNING",
+        "PROBING",
+        "REDUCING",
+        "CLASSIFYING",
+        "EXPORTING",
+        "COMPLETE",
+        "NOT_REPRODUCED",
+        "UNRESOLVED",
+        "CANCELLED",
+        "FAILED"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
     "Timing": {
       "additionalProperties": false,
       "properties": {
@@ -518,16 +1469,55 @@
       "required": ["durationMs"],
       "title": "Timing",
       "type": "object"
+    },
+    "VersionScope": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Baseline",
+          "type": "string"
+        },
+        "comparison_version": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Comparison Version",
+          "type": "string"
+        },
+        "target": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": ["baseline", "target", "comparison_version"],
+      "title": "VersionScope",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
+    "admission": { "$ref": "#/$defs/Admission" },
     "case": { "$ref": "#/$defs/FaultCase" },
+    "decision": { "$ref": "#/$defs/Decision" },
     "engine": { "$ref": "#/$defs/EngineSpec" },
+    "event": { "$ref": "#/$defs/Event" },
+    "evidence": { "$ref": "#/$defs/EvidencePage" },
+    "investigation": { "$ref": "#/$defs/Snapshot" },
     "pair": { "$ref": "#/$defs/EnginePair" },
     "report": { "$ref": "#/$defs/RunReport" }
   },
-  "required": ["case", "engine", "pair", "report"],
+  "required": [
+    "case",
+    "engine",
+    "pair",
+    "report",
+    "admission",
+    "investigation",
+    "event",
+    "evidence",
+    "decision"
+  ],
   "title": "EvidenceContracts",
   "type": "object"
 }

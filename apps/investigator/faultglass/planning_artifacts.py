@@ -15,13 +15,25 @@ MAX_SET = 4194304
 
 
 class PlanningStore:
-    def __init__(self, root, seed_id):
+    def __init__(self, root, seed_id, sequence=None):
         self.root, self.seed_id = root, evidence_id(seed_id)
         self.owner = seed_id + "/planning"
+        self.sequence = sequence
+        if sequence is not None and (
+            type(sequence) is not int or not 1 <= sequence <= 4
+        ):
+            raise ValueError("Choose a supported experiment sequence.")
         with owner_directory(root, seed_id) as fd:
             with suppress(FileExistsError):
                 os.mkdir("planning", 0o700, dir_fd=fd)
             os.fsync(fd)
+
+        if sequence is not None:
+            with owner_directory(root, self.owner) as fd:
+                with suppress(FileExistsError):
+                    os.mkdir(str(sequence), 0o700, dir_fd=fd)
+                os.fsync(fd)
+            self.owner += "/" + str(sequence)
 
     def _name(self, filename):
         if (

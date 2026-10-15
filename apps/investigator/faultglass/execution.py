@@ -42,7 +42,15 @@ def validate_parameters(case):
 
 
 def run_case(
-    data, case, pair_id, root, limits=None, *, reserved_id=None, admission_deadline=None
+    data,
+    case,
+    pair_id,
+    root,
+    limits=None,
+    *,
+    reserved_id=None,
+    admission_deadline=None,
+    runtime_existing=False,
 ):
     limits = limits or RunLimits()
     engines = engines_for(pair_id)
@@ -82,7 +90,12 @@ def run_case(
                         "preflight",
                         "A previous comparison still owns engines. Run the targeted recovery command before trying again.",
                     )
-                store = ArtifactStore(root, run_id, limits.artifactBytes)
+                store = ArtifactStore(
+                    root,
+                    run_id,
+                    limits.artifactBytes,
+                    runtime_existing=runtime_existing,
+                )
                 store.write("original-case", data)
                 envelope = executable_envelope(case, limits)
                 input_digest = digest(envelope)

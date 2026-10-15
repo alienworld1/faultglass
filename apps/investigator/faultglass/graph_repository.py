@@ -264,6 +264,17 @@ class GraphRepository:
                 if node.label in ("FaultCase", "Fingerprint", "EngineVersion")
                 else set()
             )
+            if node.label == "Investigation" and props.get("runtime_version"):
+                representative |= {
+                    "status",
+                    "updated_at",
+                    "terminal_reason",
+                    "created_at",
+                }
+                if not props.get("context_recorded_at") and not require_complete:
+                    representative |= set(node.properties) - set(props)
+                elif props.get("seed_status") != node.properties.get("status"):
+                    raise IdentityConflict()
             for key, value in node.properties.items():
                 if key not in representative and props.get(key) != value:
                     raise IdentityConflict()

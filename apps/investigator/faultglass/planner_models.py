@@ -154,7 +154,7 @@ class RankedCandidate(Contract):
 class Decision(Contract):
     selection_id: Hash
     investigation_id: str
-    sequence: Literal[1] = 1
+    sequence: Annotated[int, Field(ge=1, le=4)] = 1
     planner_version: Literal["planner-v1"] = "planner-v1"
     registry_sha256: Hash
     seed_case_id: Hash
@@ -179,6 +179,8 @@ class Decision(Contract):
     @model_validator(mode="after")
     def selected(self):
         owner = self.investigation_id + "/planning"
+        if self.source_snapshot_ref.owner.endswith(f"/planning/{self.sequence}"):
+            owner += f"/{self.sequence}"
         if self.source_snapshot_ref.owner != owner or any(
             c.input_case_id != self.seed_case_id
             or c.transformed_case_ref.owner != owner
@@ -239,7 +241,7 @@ class ProbeResult(Contract):
     selection_id: Hash
     child_evidence_id: str
     probe_id: Short
-    sequence: Literal[1] = 1
+    sequence: Annotated[int, Field(ge=1, le=4)] = 1
     input_case_id: Hash
     output_case_id: Hash
     scope: VersionScope

@@ -62,7 +62,7 @@ def selection_phase(plan, refs):
                 plan.selected_probe_id,
                 plan.created_at,
                 plan_ref,
-                sequence=1,
+                sequence=plan.sequence,
                 score=round(plan.candidates[0].utility, 6),
                 reason_code="historical_evidence"
                 if not plan.novel
@@ -115,7 +115,7 @@ def observation_phase(plan, result, report, result_ref):
                 identity,
                 created,
                 result_ref,
-                sequence=1,
+                sequence=plan.sequence,
                 probe_id=plan.selected_probe_id,
             )
         )

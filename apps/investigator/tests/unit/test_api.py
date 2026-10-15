@@ -9,10 +9,17 @@ def test_unavailable_docker_keeps_api_alive_and_exposes_safe_codes(monkeypatch):
         raise DockerException("private runtime detail")
 
     monkeypatch.setattr(api, "docker_client", unavailable)
+    monkeypatch.setattr(
+        api,
+        "service_readiness",
+        lambda repository: {"contextReady": False, "workerReady": False},
+    )
     client = TestClient(api.app)
     health = client.get("/api/health")
     assert health.status_code == 200
     assert health.json() == {
+        "contextReady": False,
+        "workerReady": False,
         "status": "ok",
         "executionReady": False,
         "issues": ["docker_unavailable"],

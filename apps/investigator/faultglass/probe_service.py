@@ -45,14 +45,15 @@ def seed_state(repository, seed_id):
 
 def load_plan(repository, store):
     plan = Decision.model_validate(loads(store.get("plan.json")))
-    expected_selection = digest(
-        {
-            "seed": plan.investigation_id,
-            "manifest": plan.seed_manifest_sha256,
-            "registry": plan.registry_sha256,
-            "planner": plan.planner_version,
-        }
-    )
+    selection_fields = {
+        "seed": plan.investigation_id,
+        "manifest": plan.seed_manifest_sha256,
+        "registry": plan.registry_sha256,
+        "planner": plan.planner_version,
+    }
+    if store.sequence is not None:
+        selection_fields["sequence"] = store.sequence
+    expected_selection = digest(selection_fields)
     if (
         plan.investigation_id != store.seed_id
         or plan.selection_id != expected_selection
@@ -262,6 +263,7 @@ def reconcile_result(repository, store, plan, seed_report):
         selection_id=plan.selection_id,
         child_evidence_id=child_id_value,
         probe_id=plan.selected_probe_id,
+        sequence=plan.sequence,
         input_case_id=plan.seed_case_id,
         output_case_id=case_identity(case)[0],
         scope=plan.scope,

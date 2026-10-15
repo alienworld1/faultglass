@@ -76,6 +76,11 @@ class EvidenceReference(ArtifactRef):
             self.owner.split("/")[0],
             self.owner.split("/")[0] + "/context",
             self.owner.split("/")[0] + "/planning",
+            self.owner.split("/")[0] + "/runtime",
+            *[
+                self.owner.split("/")[0] + f"/planning/{sequence}"
+                for sequence in range(1, 5)
+            ],
         ):
             raise ValueError("Choose a saved evidence owner folder.")
         if (
@@ -86,7 +91,11 @@ class EvidenceReference(ArtifactRef):
             raise ValueError("Use a bounded JSON evidence reference.")
         if (
             self.bytes
-            > (1048576 if self.owner.endswith(("/context", "/planning")) else 8388608)
+            > (
+                262144
+                if self.owner.endswith("/runtime")
+                else (1048576 if "/" in self.owner else 8388608)
+            )
             or len(encode(self.model_dump())) > 2048
             or len(self.id) > 160
             or len(self.kind) > 160
@@ -154,7 +163,12 @@ class Node(Contract):
         from .graph_properties import PROPERTY_MODELS
 
         properties = self.properties
-        PROPERTY_MODELS[self.label].model_validate(properties)
+        if self.label == "Investigation" and "runtime_version" in properties:
+            from .investigation_properties import RuntimeProperties
+
+            RuntimeProperties.model_validate(properties)
+        else:
+            PROPERTY_MODELS[self.label].model_validate(properties)
         for key, value in properties.items():
             if key.endswith("artifact_ref"):
                 from .jsonio import loads
