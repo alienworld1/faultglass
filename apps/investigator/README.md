@@ -65,6 +65,10 @@ python -m faultglass.recover --run-id <reported-run-id>
 
 A new comparison refuses to start while an earlier run still owns engines. The recovery command never sweeps unrelated containers. SIGINT/SIGTERM are handled with bounded cleanup; SIGKILL or a host failure may require this explicit recovery.
 
+## Evidence-backed experiments
+
+After recording a reproduced comparison in investigation memory, use `python -m faultglass.probe plan --evidence-id <seed-id>` and `python -m faultglass.probe execute --evidence-id <seed-id>` to choose and run one supported experiment. See [experiments and recovery](PROBES.md) for inspection, scoring, provenance, limits, and safe reconciliation.
+
 ## Checks
 
 From this directory, with Docker and both approved images ready:

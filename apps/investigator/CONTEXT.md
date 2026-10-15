@@ -55,7 +55,7 @@ Copy `fingerprint_id` from the saved receipt:
 python -m faultglass.context history --fingerprint <fingerprint-id> --limit 25
 ```
 
-A fresh workspace correctly reports “No related investigation evidence yet.” Normal recording does not create families, probes, or learned statistics. Unknown fingerprints fail distinctly from valid empty history. The repository accepts an optional ordered engine scope and excluded episode for later callers; it returns facts and provenance, never a probe score or selection.
+A fresh workspace correctly reports “No related investigation evidence yet.” Normal recording does not create families, probes, or learned statistics. The separate [experiment planner](PROBES.md) adds its versioned probe/feature catalog when used; it never bootstraps learned history. Unknown fingerprints fail distinctly from valid empty history. The repository accepts an optional ordered engine scope and excluded episode for later callers; it returns facts and provenance, never a probe score or selection.
 
 Progress goes to stderr; successful commands emit one bounded JSON object on stdout. Exit codes: `0` success including empty history, `2` invalid arguments, `1` unavailable/incompatible context or invalid evidence, `130` interruption. Routine errors omit credentials, submitted queries, and tracebacks.
 
