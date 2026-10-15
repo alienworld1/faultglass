@@ -102,4 +102,4 @@ pnpm --dir ../web contracts
 pnpm --dir ../web format
 ```
 
-The frontend JSON Schema and TypeScript are generated from the Python contracts. CLI execution remains local. The API admits durable investigations for a separate persistent worker, with snapshots, cancellation, evidence, and SSE replay. Context storage is available through `python -m faultglass.context`; reduction, classification, and exports require their own verified producers.
+The frontend JSON Schema and TypeScript are generated from the Python contracts. CLI execution remains local. The API admits durable investigations for a separate persistent worker, with snapshots, cancellation, evidence, and SSE replay. Context storage is available through `python -m faultglass.context`; saved investigations include deterministic, freshly verified query and fixture reduction. Classification and exports remain unavailable.
