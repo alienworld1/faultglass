@@ -1,4 +1,9 @@
-import type { Event, Snapshot } from "../contracts/evidence";
+import type {
+  Event,
+  Snapshot,
+  ReductionPage,
+  ReductionAttemptView,
+} from "../contracts/evidence";
 
 export class RequestError extends Error {
   status: number;
@@ -36,6 +41,11 @@ export const eventTypes = [
   "engine.observed",
   "divergence.detected",
   "graph.write",
+  "reduction.started",
+  "reduction.verifying",
+  "reduction.accepted",
+  "reduction.rejected",
+  "reduction.finished",
   "cancellation.requested",
   "investigation.not_reproduced",
   "investigation.unresolved",
@@ -59,3 +69,7 @@ export function parseEvent(data: string, id: string): Event {
     throw new Error("The saved trace needs to reconnect.");
   return value;
 }
+
+export type SavedReduction = Omit<ReductionPage, "attempts"> & {
+  attempts: ReductionAttemptView[];
+};

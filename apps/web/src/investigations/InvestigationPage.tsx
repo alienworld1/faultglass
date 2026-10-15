@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { request, terminal } from "./api";
 import { useInvestigation } from "./useInvestigation";
+import ReductionLineage from "./ReductionLineage";
+import { reductionAction } from "./reductionCopy";
 import EvidenceDisclosure from "./EvidenceDisclosure";
 
 const labels: Record<string, string> = {
@@ -9,6 +11,7 @@ const labels: Record<string, string> = {
   REPRODUCING: "Reproducing the difference",
   PLANNING: "Choosing an experiment",
   PROBING: "Running an experiment",
+  REDUCING: "Looking for a smaller case.",
   NOT_REPRODUCED: "No difference observed for this case and engine pair.",
   UNRESOLVED: "Investigation ended without a supported conclusion.",
   CANCELLED: "Investigation cancelled. Collected evidence is preserved.",
@@ -21,7 +24,10 @@ export default function InvestigationPage({ id }: { id: string }) {
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(30);
-  const { snapshot, events, connection, missing } = useInvestigation(id, retry);
+  const { snapshot, reduction, events, connection, missing } = useInvestigation(
+    id,
+    retry,
+  );
   async function cancel() {
     setCancelPending(true);
     try {
@@ -39,6 +45,18 @@ export default function InvestigationPage({ id }: { id: string }) {
     return <p className="py-8">We couldn’t find that investigation.</p>;
   return (
     <section className="min-w-0">
+      <p className="sr-only" role="status" aria-atomic="true">
+        {events
+          .filter((event) =>
+            [
+              "reduction.accepted",
+              "reduction.finished",
+              "investigation.failed",
+              "investigation.cancelled",
+            ].includes(event.type),
+          )
+          .at(-1)?.summary ?? ""}
+      </p>
       {connection ? (
         <div className="border-b border-line py-5">
           <p role="status">{connection}</p>
@@ -90,7 +108,9 @@ export default function InvestigationPage({ id }: { id: string }) {
               {(snapshot.cancelRequestedAt || cancelled) &&
               !terminal(snapshot.status)
                 ? "Cancellation requested. Finishing the current comparison and cleanup."
-                : (labels[snapshot.status] ?? snapshot.status)}
+                : snapshot.status === "REDUCING" && snapshot.reduction
+                  ? reductionAction(snapshot.reduction)
+                  : (labels[snapshot.status] ?? "Loading saved progress…")}
             </p>
             {snapshot.terminalReason ? (
               <p className="mt-2 text-sm">{snapshot.terminalReason.message}</p>
@@ -122,6 +142,7 @@ export default function InvestigationPage({ id }: { id: string }) {
               </p>
             ) : null}
           </div>
+          {reduction ? <ReductionLineage id={id} page={reduction} /> : null}
           <EvidenceDisclosure id={id} revision={snapshot.revision} />
           <div className="border-b border-line py-6">
             <h3 className="font-semibold">Chronological trace</h3>

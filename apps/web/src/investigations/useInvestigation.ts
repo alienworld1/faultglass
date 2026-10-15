@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
-import type { Event, Snapshot } from "../contracts/evidence";
+import type { Event, Snapshot, ReductionPage } from "../contracts/evidence";
+import type { SavedReduction } from "./api";
 import { eventTypes, parseEvent, request, terminal, RequestError } from "./api";
 
 export function useInvestigation(id: string, retry: number) {
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [savedState, setSavedState] = useState<{
+    snapshot: Snapshot | null;
+    reduction: SavedReduction | null;
+  }>({ snapshot: null, reduction: null });
+  const snapshot = savedState.snapshot?.id === id ? savedState.snapshot : null;
+  const reduction = snapshot ? savedState.reduction : null;
   const [events, setEvents] = useState<Event[]>([]);
   const [connection, setConnection] = useState("Loading investigation…");
   const [missing, setMissing] = useState(false);
@@ -15,13 +21,51 @@ export function useInvestigation(id: string, retry: number) {
     let fetching = false;
     let reconnects = 0;
     const controller = new AbortController();
+    const loadSaved = async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const saved = await request<Snapshot>(`/api/investigations/${id}`, {
+          signal: controller.signal,
+        });
+        let page: SavedReduction | null = null;
+        if (saved.reduction) {
+          let loaded: SavedReduction = await request<ReductionPage>(
+            `/api/investigations/${id}/reduction`,
+            { signal: controller.signal },
+          );
+          while (loaded.nextCursor !== null) {
+            const next: ReductionPage = await request<ReductionPage>(
+              `/api/investigations/${id}/reduction?cursor=${loaded.nextCursor}`,
+              { signal: controller.signal },
+            );
+            if (next.revision !== loaded.revision) break;
+            loaded = {
+              ...loaded,
+              attempts: [...loaded.attempts, ...next.attempts].slice(0, 32),
+              nextCursor: next.nextCursor,
+            };
+          }
+          page = loaded;
+          if (page.revision !== saved.revision || page.nextCursor !== null)
+            continue;
+        }
+        if (!disposed) {
+          setSavedState((previous) =>
+            !previous.snapshot ||
+            previous.snapshot.id !== id ||
+            saved.revision >= previous.snapshot.revision
+              ? { snapshot: saved, reduction: page }
+              : previous,
+          );
+        }
+        return saved;
+      }
+      throw new Error("Saved progress changed while loading.");
+    };
     const reconcile = async () => {
       if (fetching || disposed) return;
       fetching = true;
       try {
-        const saved = await request<Snapshot>(`/api/investigations/${id}`, {
-          signal: controller.signal,
-        });
+        const saved = await loadSaved();
         if (disposed) return;
         if (
           saved.id !== id ||
@@ -29,9 +73,6 @@ export function useInvestigation(id: string, retry: number) {
           !Number.isInteger(saved.lastEventSequence)
         )
           throw new Error();
-        setSnapshot((previous) =>
-          !previous || saved.revision >= previous.revision ? saved : previous,
-        );
         setConnection("");
         if (lastSequence > saved.lastEventSequence) {
           lastSequence = 0;
@@ -103,13 +144,7 @@ export function useInvestigation(id: string, retry: number) {
       }
       refreshing = true;
       try {
-        const saved = await request<Snapshot>(`/api/investigations/${id}`, {
-          signal: controller.signal,
-        });
-        if (!disposed)
-          setSnapshot((previous) =>
-            !previous || saved.revision >= previous.revision ? saved : previous,
-          );
+        await loadSaved();
       } catch {
         if (!disposed) reconnect();
       } finally {
@@ -139,5 +174,11 @@ export function useInvestigation(id: string, retry: number) {
       clearTimeout(timer);
     };
   }, [id, retry]);
-  return { snapshot, events, connection, missing };
+  return {
+    snapshot,
+    reduction,
+    events: events.filter((event) => event.investigationId === id),
+    connection,
+    missing,
+  };
 }
