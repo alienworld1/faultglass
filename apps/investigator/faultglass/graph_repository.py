@@ -437,6 +437,8 @@ class GraphRepository:
         scope: VersionScope | None = None,
         limit: int = 25,
         exclude_id: str | None = None,
+        *,
+        overflow_check: bool = False,
     ) -> FingerprintHistory:
         fingerprint_id(identity)
         if type(limit) is not int or not 1 <= limit <= 100:
@@ -455,9 +457,17 @@ class GraphRepository:
             raise EvidenceIntegrity()
         read_reference(self.config.artifact_root, read_ref(rows[0][1]["artifact_ref"]))
         candidates = []
-        for family, probe, stats, features in self._query(
-            "history", {"id": identity, "exclude_id": exclude_id or "", "limit": limit}
-        ):
+        rows = self._query(
+            "history",
+            {
+                "id": identity,
+                "exclude_id": exclude_id or "",
+                "limit": 101 if overflow_check else limit,
+            },
+        )
+        if overflow_check and len(rows) > 100:
+            raise ContextError("Related evidence exceeds the supported planning limit.")
+        for family, probe, stats, features in rows:
             try:
                 Node(label="FaultFamily", properties=dict(family))
                 Node(label="Probe", properties=dict(probe))
@@ -521,11 +531,51 @@ class GraphRepository:
                         version_scope=version_scope,
                         exact_pair_match=scope is not None and version_scope == scope,
                         supporting_episodes=supporting,
+                        path_edges=self._history_edges(
+                            identity, family["id"], probe["id"], stats, sources
+                        ),
                     )
                 )
             except (ValueError, KeyError, TypeError, AttributeError):
                 raise ContextError("Related evidence could not be verified.") from None
         return FingerprintHistory(fingerprint_id=identity, candidates=candidates)
+
+    def _history_edges(self, fingerprint, family, probe, stats, sources):
+        edges = [
+            Edge(
+                type="EFFECTIVE_FOR",
+                source_label="Probe",
+                source_id=probe,
+                target_label="FaultFamily",
+                target_id=family,
+                properties=dict(stats),
+            )
+        ]
+        for kind, source, target, props in self._query(
+            "history-paths",
+            {
+                "fingerprint": fingerprint,
+                "family": family,
+                "probe": probe,
+                "classifications": [row[3] for row in sources],
+            },
+        ):
+            source_label, target_label = ENDPOINTS[kind]
+            edge = Edge(
+                type=kind,
+                source_label=source_label,
+                source_id=source,
+                target_label=target_label,
+                target_id=target,
+                properties=dict(props),
+            )
+            if kind in ("INVOLVES_FEATURE", "MATCHES_FAMILY"):
+                read_reference(self.config.artifact_root, read_ref(props["source_id"]))
+            edges.append(edge)
+        return sorted(
+            {edge.properties["id"]: edge for edge in edges}.values(),
+            key=lambda edge: edge.properties["id"],
+        )
 
 
 def read_ref(value):

@@ -3,6 +3,7 @@ import hashlib
 import os
 import signal
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -40,11 +41,18 @@ def validate_parameters(case):
         graph._build_params_header(parameters)
 
 
-def run_case(data, case, pair_id, root, limits=None):
+def run_case(
+    data, case, pair_id, root, limits=None, *, reserved_id=None, admission_deadline=None
+):
     limits = limits or RunLimits()
     engines = engines_for(pair_id)
     validate_parameters(case)
-    run_id, started = str(uuid4()), timestamp()
+    from .context_models import evidence_id
+
+    run_id, started = (
+        evidence_id(reserved_id) if reserved_id is not None else str(uuid4()),
+        timestamp(),
+    )
     store, runner, client = None, None, None
     content_hash = hashlib.sha256(data).hexdigest()
     fields = {
@@ -56,6 +64,16 @@ def run_case(data, case, pair_id, root, limits=None):
     try:
         with Lease():
             try:
+                if (
+                    admission_deadline is not None
+                    and admission_deadline - time.monotonic()
+                    < limits.pairSeconds + 2 * limits.cleanupSeconds
+                ):
+                    raise ExecutionFailure(
+                        "budget_exhausted",
+                        "admission",
+                        "The experiment budget was exhausted.",
+                    )
                 client = docker_client()
                 images = verify_images(client, engines)
                 if client.containers.list(all=True, filters={"label": OWNER}):
@@ -83,6 +101,16 @@ def run_case(data, case, pair_id, root, limits=None):
                         }
                     ),
                 )
+                if (
+                    admission_deadline is not None
+                    and admission_deadline - time.monotonic()
+                    < limits.pairSeconds + 2 * limits.cleanupSeconds
+                ):
+                    raise ExecutionFailure(
+                        "budget_exhausted",
+                        "admission",
+                        "The experiment budget was exhausted.",
+                    )
                 runner = DockerRunner(client, run_id)
                 print("Case: " + case.title, file=sys.stderr)
                 print("Running baseline and target…", file=sys.stderr)

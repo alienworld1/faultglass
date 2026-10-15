@@ -75,15 +75,18 @@ class EvidenceReference(ArtifactRef):
         if self.owner not in (
             self.owner.split("/")[0],
             self.owner.split("/")[0] + "/context",
+            self.owner.split("/")[0] + "/planning",
         ):
             raise ValueError("Choose a saved evidence owner folder.")
         if (
             PurePosixPath(self.path).name != self.path
+            or not self.path.endswith(".json")
             or self.mediaType != "application/json"
         ):
             raise ValueError("Use a bounded JSON evidence reference.")
         if (
-            self.bytes > (1048576 if self.owner.endswith("/context") else 8388608)
+            self.bytes
+            > (1048576 if self.owner.endswith(("/context", "/planning")) else 8388608)
             or len(encode(self.model_dump())) > 2048
             or len(self.id) > 160
             or len(self.kind) > 160
@@ -219,6 +222,7 @@ class Edge(Contract):
             "execution",
             "catalog",
             "verified_classification",
+            "deterministic_planning",
         ):
             raise ValueError("Context relationships require verified provenance.")
         validate_timestamp(self.properties["created_at"])
@@ -308,6 +312,8 @@ class HistoryCandidate(Contract):
     version_scope: VersionScope
     exact_pair_match: bool
     supporting_episodes: list[InvestigationContext] = Field(min_length=1, max_length=5)
+
+    path_edges: list[Edge] = Field(default_factory=list, max_length=256)
 
     @model_validator(mode="after")
     def statistics(self):

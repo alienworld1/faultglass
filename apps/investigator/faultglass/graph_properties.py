@@ -61,6 +61,14 @@ class InvestigationProperties(BaseProperties):
     context_payload_sha256: Hash | None = None
     context_recorded_at: Timestamp | None = None
     terminal_reason: Text | None = None
+    selection_phase_key: Hash | None = None
+    selection_payload_sha256: Hash | None = None
+    selection_committed_at: Timestamp | None = None
+    selection_artifact_ref: Text | None = None
+    observation_phase_key: Hash | None = None
+    observation_payload_sha256: Hash | None = None
+    observation_committed_at: Timestamp | None = None
+    observation_artifact_ref: Text | None = None
 
 
 class CaseProperties(BaseProperties):
@@ -90,6 +98,8 @@ class FeatureProperties(BaseProperties):
 
 
 class RunProperties(BaseProperties):
+    probe_id: Short | None = None
+    child_evidence_id: Short | None = None
     investigation_id: Short
     role: Literal["baseline", "target"]
     status: Literal["result", "error", "timeout", "crash"]
@@ -111,6 +121,7 @@ class DivergenceProperties(BaseProperties):
 
 
 class ProbeProperties(BaseProperties):
+    definition_sha256: Hash | None = None
     type: Short
     template_version: Short
     description: Text

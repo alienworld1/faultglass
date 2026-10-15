@@ -3,13 +3,17 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from .graph_properties import Short, Text
-from .models import Contract
+from .models import Contract, Hash
 
 
 class ProvenanceProperties(Contract):
     id: Text
     source_kind: Literal[
-        "deterministic_extraction", "execution", "catalog", "verified_classification"
+        "deterministic_extraction",
+        "execution",
+        "catalog",
+        "verified_classification",
+        "deterministic_planning",
     ]
     source_id: Text
     created_at: Text
@@ -25,6 +29,10 @@ class ExecutionLinkProperties(ProvenanceProperties):
 
 
 class SelectionProperties(ProvenanceProperties):
+    selection_id: Hash | None = None
+    planner_version: Short | None = None
+    plan_artifact_ref: Text | None = None
+    snapshot_artifact_ref: Text | None = None
     sequence: Annotated[int, Field(ge=0)]
     score: float
     reason_code: Short
