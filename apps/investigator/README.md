@@ -4,7 +4,7 @@ Compare the same reproducible Cypher case across two isolated FalkorDB engines. 
 
 ## Local setup
 
-Verified on Linux/amd64 with Python 3.12.3, Node 24.19.0, pnpm 11.25.0, and Docker Engine 29.9.0. `pnpm install` prepares the pinned Node runtime for frontend commands. The trusted investigator needs local Docker API access. Tested engines have no network, published ports, host mounts, socket, or inherited application credentials. No graph-memory database or LLM key is required.
+Verified on Linux/amd64 with Python 3.12.3, Node 24.19.0, pnpm 11.25.0, and Docker Engine 29.9.0. `pnpm install` prepares the pinned Node runtime for frontend commands. The trusted investigator needs local Docker API access. Tested engines have no network, published ports, host mounts, socket, or inherited application credentials. An LLM key is not required. Execution can run independently of investigation memory. See [persistent investigation memory](CONTEXT.md) for the separate context service, commands, graph model, and recovery.
 
 From the repository root:
 
@@ -98,4 +98,4 @@ pnpm --dir ../web contracts
 pnpm --dir ../web format
 ```
 
-The frontend JSON Schema and TypeScript are generated from the Python contracts. CLI execution remains local; the API exposes only health and curated matrix reads. Browser execution, graph storage, planning, reduction, and durable jobs are intentionally absent.
+The frontend JSON Schema and TypeScript are generated from the Python contracts. CLI execution remains local; the API exposes only health and curated matrix reads. Browser execution, planning, reduction, and durable jobs are intentionally absent. Context storage is available separately through `python -m faultglass.context`; it does not change execution or the read-only API.

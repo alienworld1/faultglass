@@ -1,0 +1,21 @@
+services:
+  context:
+    image: falkordb/falkordb@sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - context-data:/data
+    environment:
+      BROWSER: "0"
+      FALKORDB_DATA_PATH: /data
+      FALKORDB_ARGS: "TIMEOUT_MAX 10000 TIMEOUT_DEFAULT 2000"
+      REDIS_ARGS: "--appendonly yes --appendfsync always --save 60 1"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+volumes:
+  context-data:

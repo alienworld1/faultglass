@@ -116,23 +116,7 @@ class ArtifactStore:
         return ref
 
     def atomic(self, filename, data):
-        temporary = uuid4().hex + ".pending"
-        fd = os.open(
-            temporary,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-            0o600,
-            dir_fd=self.fd,
-        )
-        try:
-            with os.fdopen(fd, "wb") as stream:
-                stream.write(data)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.rename(temporary, filename, src_dir_fd=self.fd, dst_dir_fd=self.fd)
-            os.fsync(self.fd)
-        finally:
-            with suppress(FileNotFoundError):
-                os.unlink(temporary, dir_fd=self.fd)
+        atomic_write(self.fd, filename, data)
 
     def commit(self):
         if not REQUIRED.issubset({ref.kind for ref in self.refs}):
@@ -186,3 +170,23 @@ def verify(path):
         if len(data) != ref.bytes or hashlib.sha256(data).hexdigest() != ref.sha256:
             raise ValueError("Evidence hash or size does not match.")
     return len(refs)
+
+
+def atomic_write(directory_fd, filename, data):
+    temporary = uuid4().hex + ".pending"
+    fd = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+        0o600,
+        dir_fd=directory_fd,
+    )
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.rename(temporary, filename, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+        os.fsync(directory_fd)
+    finally:
+        with suppress(FileNotFoundError):
+            os.unlink(temporary, dir_fd=directory_fd)
