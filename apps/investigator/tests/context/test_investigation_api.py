@@ -171,3 +171,36 @@ def test_context_outage_is_not_absence(connected_api, monkeypatch):
     response = client.get("/api/investigations/admission/" + str(uuid4()))
     assert response.status_code == 503
     assert response.json()["error"]["retryable"]
+
+
+def test_reduction_reads_validate_cursors_and_never_execute(connected_api, monkeypatch):
+    client, repo = connected_api
+    response = client.post(
+        "/api/investigations", json=body(), headers={"Idempotency-Key": str(uuid4())}
+    )
+    job = response.json()["investigation"]["id"]
+    monkeypatch.setattr(
+        "faultglass.worker.run_case",
+        lambda *_a, **_k: pytest.fail("A read must never execute work"),
+    )
+    path = f"/api/investigations/{job}/reduction"
+    page = client.get(path)
+    assert page.status_code == 200
+    assert (
+        page.json()["summary"] is None
+        and page.json()["case"] is None
+        and page.json()["attempts"] == []
+    )
+    for query in (
+        "cursor=-1",
+        "cursor=1.0",
+        "cursor=33",
+        "setupCursor=x",
+        "setupCursor=33",
+        "cursor=99999999999999999999999999",
+        "caseId=foreign",
+    ):
+        assert client.get(path + "?" + query).status_code == 422
+    assert client.get(path + "?caseId=" + "a" * 64).status_code == 404
+    assert client.get(f"/api/investigations/{uuid4()}/reduction").status_code == 404
+    assert InvestigationStore(repo).load(job).snapshot.revision == 1

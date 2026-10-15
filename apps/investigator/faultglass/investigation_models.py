@@ -10,7 +10,9 @@ from pydantic import (
 )
 
 from .context_models import EvidenceReference, evidence_id, validate_timestamp
+from .evidence_summaries import PairedSummary
 from .models import Contract, EngineSpec, Hash
+from .reduction_models import ReductionSummary
 
 
 class Status(StrEnum):
@@ -45,7 +47,7 @@ NEXT = {
     Status.QUEUED: {Status.FINGERPRINTING},
     Status.FINGERPRINTING: {Status.REPRODUCING},
     Status.REPRODUCING: {Status.PLANNING, Status.NOT_REPRODUCED},
-    Status.PLANNING: {Status.PROBING},
+    Status.PLANNING: {Status.PROBING, Status.REDUCING},
     Status.PROBING: {Status.PLANNING, Status.REDUCING},
     Status.REDUCING: {Status.CLASSIFYING},
     Status.CLASSIFYING: {Status.EXPORTING},
@@ -53,7 +55,7 @@ NEXT = {
 }
 
 
-def transition(before, after, *, downstream=False):
+def transition(before, after, *, downstream=False, reducing=False):
     if before in TERMINAL or (
         after not in NEXT.get(before, set())
         and after not in {Status.FAILED, Status.CANCELLED, Status.UNRESOLVED}
@@ -63,6 +65,7 @@ def transition(before, after, *, downstream=False):
         after
         in {Status.REDUCING, Status.CLASSIFYING, Status.EXPORTING, Status.COMPLETE}
         and not downstream
+        and not (after == Status.REDUCING and reducing)
     ):
         raise ValueError("Further analysis is unavailable.")
 
@@ -81,13 +84,16 @@ class Budget(RuntimeContract):
     maxSeconds: Literal[900] = 900
     maxArtifactBytes: Literal[67108864] = 67108864
     maxEvents: Literal[512] = 512
-    reducerCandidates: Literal[0] = 0
+    reducerCandidates: Literal[0, 4] = 4
+    reservedCandidates: int = Field(default=0, ge=0, le=4)
+    stabilityChecks: int = Field(default=0, ge=0, le=1)
+    consideredAttempts: int = Field(default=0, ge=0, le=32)
     reservedProbes: int = Field(default=0, ge=0, le=4)
     chargedBytes: int = Field(default=0, ge=0, le=67108864)
 
 
 class Capabilities(RuntimeContract):
-    reducing: Literal[False] = False
+    reducing: bool = True
     classifying: Literal[False] = False
     exporting: Literal[False] = False
 
@@ -133,6 +139,7 @@ class Snapshot(RuntimeContract):
     terminalReason: Reason | None = None
     evidence: list[EvidenceReference] = Field(default_factory=list, max_length=80)
     lastEventSequence: int = Field(default=1, ge=0, le=512)
+    reduction: ReductionSummary | None = None
     capabilities: Capabilities = Field(default_factory=Capabilities)
 
     _id = field_validator("id")(evidence_id)
@@ -166,6 +173,11 @@ EventType = Literal[
     "engine.observed",
     "divergence.detected",
     "graph.write",
+    "reduction.started",
+    "reduction.verifying",
+    "reduction.accepted",
+    "reduction.rejected",
+    "reduction.finished",
     "cancellation.requested",
     "investigation.not_reproduced",
     "investigation.unresolved",
@@ -179,6 +191,9 @@ class EventData(Contract):
     status: RuntimeStatus
     probeSequence: int = Field(ge=0, le=4)
     childId: str | None = None
+    attemptId: Hash | None = None
+    attemptOrdinal: int | None = Field(default=None, ge=1, le=32)
+    currentCaseId: Hash | None = None
     references: list[EvidenceReference] = Field(default_factory=list, max_length=3)
 
 
@@ -201,6 +216,9 @@ class Event(Contract):
         return self
 
 
+ExecutionPurpose = Literal["probe", "seed", "stability", "reduction"]
+
+
 class Reservation(Contract):
     key: Hash
     childId: str
@@ -208,8 +226,19 @@ class Reservation(Contract):
     state: Literal["reserved", "started", "evidence_complete", "incomplete"]
     sequence: int = Field(ge=0, le=4)
     reservedAt: str
+    purpose: ExecutionPurpose | None = None
+    ordinal: int = Field(default=0, ge=0, le=4)
 
     _id = field_validator("childId")(evidence_id)
+    _time = field_validator("reservedAt")(validate_timestamp)
+
+    @model_validator(mode="after")
+    def execution_scope(self):
+        if (self.purpose == "stability" and self.ordinal != 1) or (
+            self.purpose == "reduction" and self.ordinal == 0
+        ):
+            raise ValueError("The execution reservation does not agree.")
+        return self
 
 
 class PhaseReceipt(Contract):
@@ -218,6 +247,8 @@ class PhaseReceipt(Contract):
     handlerVersion: Literal["runtime-v1"] = "runtime-v1"
     sequence: int = Field(ge=0, le=4)
     attempt: int = Field(ge=1)
+    purpose: ExecutionPurpose | None = None
+    ordinal: int = Field(default=0, ge=0, le=4)
     previous: EvidenceReference | None
     inputs: list[EvidenceReference] = Field(max_length=4)
     outputs: list[EvidenceReference] = Field(max_length=10)
@@ -231,6 +262,7 @@ class RuntimeRecord(Contract):
     previous: EvidenceReference | None = None
     event: Event
     workerId: str | None = None
+    reductionRef: EvidenceReference | None = None
     reservation: Reservation | None = None
     triedOutputs: list[Hash] = Field(default_factory=list, max_length=4)
     receiptKey: Hash
@@ -241,6 +273,17 @@ class RuntimeRecord(Contract):
     def agrees(self):
         snapshot = self.snapshot
         evidence_id(self.admissionKey)
+        if (self.reductionRef is None) != (snapshot.reduction is None):
+            raise ValueError("Saved reduction control and evidence do not agree.")
+        if snapshot.reduction:
+            summary = snapshot.reduction
+            if (
+                self.reductionRef.owner != snapshot.id + "/reduction"
+                or summary.source.engines != snapshot.engines
+                or summary.reservedCandidates != snapshot.budget.reservedCandidates
+                or summary.consideredCount != snapshot.budget.consideredAttempts
+            ):
+                raise ValueError("Saved reduction counters and scope do not agree.")
         if self.workerId is not None:
             evidence_id(self.workerId)
         if (
@@ -259,25 +302,17 @@ class RuntimeRecord(Contract):
             or len(self.triedOutputs) != snapshot.budget.reservedProbes
             or (
                 self.reservation is not None
-                and self.reservation.sequence != snapshot.probeSequence
+                and (
+                    self.reservation.sequence != snapshot.probeSequence
+                    or (
+                        self.reservation.purpose in {"reduction", "stability"}
+                        and snapshot.status not in {Status.REDUCING, Status.FAILED}
+                    )
+                )
             )
         ):
             raise ValueError("Saved investigation control and evidence do not agree.")
         return self
-
-
-class ObservationSummary(Contract):
-    engineVersionId: str
-    status: Literal["result", "error", "timeout", "crash"]
-    rowCount: int | None
-    columns: list[str] = Field(max_length=32)
-    errorCategory: str | None
-    detail: str | None = Field(max_length=256)
-
-
-class PairedSummary(Contract):
-    baseline: ObservationSummary
-    target: ObservationSummary
 
 
 class EvidenceItem(Contract):

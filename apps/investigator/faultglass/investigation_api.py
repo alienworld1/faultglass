@@ -12,14 +12,13 @@ from pydantic import ValidationError
 from .context_artifacts import read_reference
 from .context_errors import ContextError, ContextUnavailable, EvidenceIntegrity
 from .context_models import evidence_id
+from .evidence_summaries import ObservationSummary, PairedSummary
 from .graph_repository import GraphRepository
 from .investigation_models import (
     TERMINAL,
     Admission,
     EvidenceItem,
     EvidencePage,
-    ObservationSummary,
-    PairedSummary,
 )
 from .investigation_store import InvestigationStore, RuntimeErrorResponse
 from .jsonio import encode, loads
@@ -372,3 +371,27 @@ def mutation_origins():
             "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000",
         ).split(",")
     )
+
+
+@router.get("/{job_id}/reduction")
+def reduction(
+    job_id: str, cursor: str = "0", caseId: str | None = None, setupCursor: str = "0"
+):
+    from .reduction_reads import reduction_page
+
+    validate_id(job_id)
+    with closing(GraphRepository()) as repository:
+        store = InvestigationStore(repository)
+        record = store.load(job_id)
+        if any(
+            not value.isascii() or not value.isdecimal() or len(value) > 2
+            for value in (cursor, setupCursor)
+        ):
+            raise RuntimeErrorResponse(
+                "invalid_cursor", "Choose a valid reduction page.", 422
+            )
+        return bounded_response(
+            reduction_page(
+                store, record, int(cursor), caseId, int(setupCursor)
+            ).model_dump()
+        )

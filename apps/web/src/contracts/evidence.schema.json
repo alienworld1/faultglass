@@ -47,6 +47,13 @@
           "title": "Chargedbytes",
           "type": "integer"
         },
+        "consideredAttempts": {
+          "default": 0,
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Consideredattempts",
+          "type": "integer"
+        },
         "maxArtifactBytes": {
           "const": 67108864,
           "default": 67108864,
@@ -72,9 +79,16 @@
           "type": "integer"
         },
         "reducerCandidates": {
-          "const": 0,
-          "default": 0,
+          "default": 4,
+          "enum": [0, 4],
           "title": "Reducercandidates",
+          "type": "integer"
+        },
+        "reservedCandidates": {
+          "default": 0,
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Reservedcandidates",
           "type": "integer"
         },
         "reservedProbes": {
@@ -82,6 +96,13 @@
           "maximum": 4,
           "minimum": 0,
           "title": "Reservedprobes",
+          "type": "integer"
+        },
+        "stabilityChecks": {
+          "default": 0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Stabilitychecks",
           "type": "integer"
         }
       },
@@ -91,6 +112,9 @@
         "maxArtifactBytes",
         "maxEvents",
         "reducerCandidates",
+        "reservedCandidates",
+        "stabilityChecks",
+        "consideredAttempts",
         "reservedProbes",
         "chargedBytes"
       ],
@@ -112,15 +136,43 @@
           "title": "Exporting",
           "type": "boolean"
         },
-        "reducing": {
-          "const": false,
-          "default": false,
-          "title": "Reducing",
-          "type": "boolean"
-        }
+        "reducing": { "default": true, "title": "Reducing", "type": "boolean" }
       },
       "required": ["reducing", "classifying", "exporting"],
       "title": "Capabilities",
+      "type": "object"
+    },
+    "CaseSize": {
+      "additionalProperties": false,
+      "properties": {
+        "executableBytes": {
+          "minimum": 0,
+          "title": "Executablebytes",
+          "type": "integer"
+        },
+        "queryTokens": {
+          "minimum": 0,
+          "title": "Querytokens",
+          "type": "integer"
+        },
+        "setupStatements": {
+          "minimum": 0,
+          "title": "Setupstatements",
+          "type": "integer"
+        },
+        "setupTokens": {
+          "minimum": 0,
+          "title": "Setuptokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "queryTokens",
+        "setupStatements",
+        "setupTokens",
+        "executableBytes"
+      ],
+      "title": "CaseSize",
       "type": "object"
     },
     "CheckObservation": {
@@ -449,6 +501,11 @@
             "engine.observed",
             "divergence.detected",
             "graph.write",
+            "reduction.started",
+            "reduction.verifying",
+            "reduction.accepted",
+            "reduction.rejected",
+            "reduction.finished",
             "cancellation.requested",
             "investigation.not_reproduced",
             "investigation.unresolved",
@@ -475,10 +532,34 @@
     "EventData": {
       "additionalProperties": false,
       "properties": {
+        "attemptId": {
+          "anyOf": [
+            { "pattern": "^[a-f0-9]{64}$", "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Attemptid"
+        },
+        "attemptOrdinal": {
+          "anyOf": [
+            { "maximum": 32, "minimum": 1, "type": "integer" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Attemptordinal"
+        },
         "childId": {
           "anyOf": [{ "type": "string" }, { "type": "null" }],
           "default": null,
           "title": "Childid"
+        },
+        "currentCaseId": {
+          "anyOf": [
+            { "pattern": "^[a-f0-9]{64}$", "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Currentcaseid"
         },
         "probeSequence": {
           "maximum": 4,
@@ -1064,6 +1145,442 @@
       "title": "Reason",
       "type": "object"
     },
+    "ReductionAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "afterSize": {
+          "anyOf": [{ "$ref": "#/$defs/CaseSize" }, { "type": "null" }]
+        },
+        "artifactRefs": {
+          "items": { "$ref": "#/$defs/EvidenceReference" },
+          "maxItems": 10,
+          "title": "Artifactrefs",
+          "type": "array"
+        },
+        "beforeSize": { "$ref": "#/$defs/CaseSize" },
+        "candidateCaseId": {
+          "anyOf": [
+            { "pattern": "^[a-f0-9]{64}$", "type": "string" },
+            { "type": "null" }
+          ],
+          "title": "Candidatecaseid"
+        },
+        "candidatePayloadSha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Candidatepayloadsha256",
+          "type": "string"
+        },
+        "candidateRef": { "$ref": "#/$defs/EvidenceReference" },
+        "change": { "$ref": "#/$defs/ReductionChange" },
+        "createdAt": { "title": "Createdat", "type": "string" },
+        "id": { "pattern": "^[a-f0-9]{64}$", "title": "Id", "type": "string" },
+        "observedDivergence": {
+          "anyOf": [{ "$ref": "#/$defs/Divergence" }, { "type": "null" }],
+          "default": null
+        },
+        "ordinal": {
+          "maximum": 32,
+          "minimum": 1,
+          "title": "Ordinal",
+          "type": "integer"
+        },
+        "parentCaseId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Parentcaseid",
+          "type": "string"
+        },
+        "phase": {
+          "enum": ["query", "fixture"],
+          "title": "Phase",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "invalid_candidate",
+                "unsupported_shape",
+                "not_smaller",
+                "duplicate",
+                "difference_eliminated",
+                "signature_changed",
+                "verified",
+                "execution_failure",
+                "integrity_failure"
+              ],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "resolvedAt": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Resolvedat"
+        },
+        "state": {
+          "enum": ["proposed", "verifying", "accepted", "rejected", "failed"],
+          "title": "State",
+          "type": "string"
+        },
+        "transformId": {
+          "enum": [
+            "remove-with-v1",
+            "remove-optional-v1",
+            "remove-match-v1",
+            "remove-setup-v1"
+          ],
+          "title": "Transformid",
+          "type": "string"
+        },
+        "verificationEvidenceId": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Verificationevidenceid"
+        }
+      },
+      "required": [
+        "id",
+        "ordinal",
+        "phase",
+        "transformId",
+        "parentCaseId",
+        "candidateCaseId",
+        "candidatePayloadSha256",
+        "candidateRef",
+        "change",
+        "beforeSize",
+        "afterSize",
+        "state",
+        "reason",
+        "verificationEvidenceId",
+        "observedDivergence",
+        "createdAt",
+        "resolvedAt",
+        "artifactRefs"
+      ],
+      "title": "ReductionAttempt",
+      "type": "object"
+    },
+    "ReductionAttemptView": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": { "$ref": "#/$defs/ReductionAttempt" },
+        "candidate": {
+          "anyOf": [{ "$ref": "#/$defs/ReductionCaseView" }, { "type": "null" }]
+        },
+        "observations": {
+          "anyOf": [{ "$ref": "#/$defs/PairedSummary" }, { "type": "null" }],
+          "default": null
+        },
+        "parent": {
+          "anyOf": [{ "$ref": "#/$defs/ReductionCaseView" }, { "type": "null" }]
+        }
+      },
+      "required": ["attempt", "observations", "parent", "candidate"],
+      "title": "ReductionAttemptView",
+      "type": "object"
+    },
+    "ReductionCaseView": {
+      "additionalProperties": false,
+      "properties": {
+        "caseId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Caseid",
+          "type": "string"
+        },
+        "caseRef": { "$ref": "#/$defs/EvidenceReference" },
+        "nextSetupCursor": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "title": "Nextsetupcursor"
+        },
+        "query": { "maxLength": 16384, "title": "Query", "type": "string" },
+        "setup": {
+          "items": { "type": "string" },
+          "maxItems": 8,
+          "title": "Setup",
+          "type": "array"
+        },
+        "setupTotal": {
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Setuptotal",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "caseId",
+        "query",
+        "setup",
+        "setupTotal",
+        "nextSetupCursor",
+        "caseRef"
+      ],
+      "title": "ReductionCaseView",
+      "type": "object"
+    },
+    "ReductionChange": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "end": {
+          "anyOf": [{ "minimum": 0, "type": "integer" }, { "type": "null" }],
+          "default": null,
+          "title": "End"
+        },
+        "originalTextSha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Originaltextsha256",
+          "type": "string"
+        },
+        "setupIndex": {
+          "anyOf": [
+            { "maximum": 31, "minimum": 0, "type": "integer" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Setupindex"
+        },
+        "start": {
+          "anyOf": [{ "minimum": 0, "type": "integer" }, { "type": "null" }],
+          "default": null,
+          "title": "Start"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "setupIndex",
+        "originalTextSha256",
+        "description"
+      ],
+      "title": "ReductionChange",
+      "type": "object"
+    },
+    "ReductionPage": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "items": { "$ref": "#/$defs/ReductionAttemptView" },
+          "maxItems": 10,
+          "title": "Attempts",
+          "type": "array"
+        },
+        "case": {
+          "anyOf": [{ "$ref": "#/$defs/ReductionCaseView" }, { "type": "null" }]
+        },
+        "nextCursor": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "title": "Nextcursor"
+        },
+        "revision": { "minimum": 1, "title": "Revision", "type": "integer" },
+        "sourceCase": {
+          "anyOf": [
+            { "$ref": "#/$defs/ReductionCaseView" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "sourceObservations": {
+          "anyOf": [{ "$ref": "#/$defs/PairedSummary" }, { "type": "null" }],
+          "default": null
+        },
+        "stabilityObservations": {
+          "anyOf": [{ "$ref": "#/$defs/PairedSummary" }, { "type": "null" }],
+          "default": null
+        },
+        "summary": {
+          "anyOf": [{ "$ref": "#/$defs/ReductionSummary" }, { "type": "null" }]
+        }
+      },
+      "required": [
+        "revision",
+        "summary",
+        "attempts",
+        "nextCursor",
+        "case",
+        "sourceCase",
+        "sourceObservations",
+        "stabilityObservations"
+      ],
+      "title": "ReductionPage",
+      "type": "object"
+    },
+    "ReductionSource": {
+      "additionalProperties": false,
+      "properties": {
+        "engines": {
+          "items": { "$ref": "#/$defs/EngineSpec" },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Engines",
+          "type": "array"
+        },
+        "reducerVersion": {
+          "const": "reducer-v1",
+          "default": "reducer-v1",
+          "title": "Reducerversion",
+          "type": "string"
+        },
+        "referenceDivergence": { "$ref": "#/$defs/Divergence" },
+        "sourceCaseId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sourcecaseid",
+          "type": "string"
+        },
+        "sourceCaseRef": { "$ref": "#/$defs/EvidenceReference" },
+        "sourceEvidenceId": { "title": "Sourceevidenceid", "type": "string" },
+        "sourceKind": {
+          "enum": ["seed", "probe"],
+          "title": "Sourcekind",
+          "type": "string"
+        },
+        "sourceProbeSequence": {
+          "anyOf": [
+            { "maximum": 4, "minimum": 1, "type": "integer" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Sourceprobesequence"
+        },
+        "stabilityEvidenceId": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Stabilityevidenceid"
+        },
+        "stable": { "default": false, "title": "Stable", "type": "boolean" }
+      },
+      "required": [
+        "sourceKind",
+        "sourceEvidenceId",
+        "sourceProbeSequence",
+        "sourceCaseId",
+        "sourceCaseRef",
+        "referenceDivergence",
+        "engines",
+        "stabilityEvidenceId",
+        "stable",
+        "reducerVersion"
+      ],
+      "title": "ReductionSource",
+      "type": "object"
+    },
+    "ReductionSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptedCount": {
+          "default": 0,
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Acceptedcount",
+          "type": "integer"
+        },
+        "consideredCount": {
+          "default": 0,
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Consideredcount",
+          "type": "integer"
+        },
+        "currentCaseId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Currentcaseid",
+          "type": "string"
+        },
+        "currentCaseRef": { "$ref": "#/$defs/EvidenceReference" },
+        "currentSize": { "$ref": "#/$defs/CaseSize" },
+        "finalCaseRef": {
+          "anyOf": [
+            { "$ref": "#/$defs/EvidenceReference" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "originalSize": { "$ref": "#/$defs/CaseSize" },
+        "rejectedCount": {
+          "default": 0,
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Rejectedcount",
+          "type": "integer"
+        },
+        "reservedCandidates": {
+          "default": 0,
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Reservedcandidates",
+          "type": "integer"
+        },
+        "source": { "$ref": "#/$defs/ReductionSource" },
+        "sourceSize": { "$ref": "#/$defs/CaseSize" },
+        "state": {
+          "enum": [
+            "checking",
+            "proposing",
+            "verifying",
+            "finished",
+            "cancelled",
+            "failed"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "stopReason": {
+          "anyOf": [
+            {
+              "enum": [
+                "supported_passes_exhausted",
+                "unsupported_shape",
+                "candidate_limit",
+                "consideration_limit",
+                "time_limit",
+                "storage_limit",
+                "event_limit",
+                "unstable_source",
+                "cancelled",
+                "verification_failed"
+              ],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Stopreason"
+        },
+        "verificationFailures": {
+          "default": 0,
+          "maximum": 5,
+          "minimum": 0,
+          "title": "Verificationfailures",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source",
+        "state",
+        "originalSize",
+        "sourceSize",
+        "currentSize",
+        "currentCaseId",
+        "currentCaseRef",
+        "acceptedCount",
+        "rejectedCount",
+        "verificationFailures",
+        "consideredCount",
+        "reservedCandidates",
+        "stopReason",
+        "finalCaseRef"
+      ],
+      "title": "ReductionSummary",
+      "type": "object"
+    },
     "Rejection": {
       "additionalProperties": false,
       "properties": {
@@ -1335,6 +1852,10 @@
           "title": "Probesequence",
           "type": "integer"
         },
+        "reduction": {
+          "anyOf": [{ "$ref": "#/$defs/ReductionSummary" }, { "type": "null" }],
+          "default": null
+        },
         "revision": {
           "default": 1,
           "minimum": 1,
@@ -1400,6 +1921,7 @@
         "terminalReason",
         "evidence",
         "lastEventSequence",
+        "reduction",
         "capabilities"
       ],
       "title": "Snapshot",
@@ -1505,6 +2027,7 @@
     "evidence": { "$ref": "#/$defs/EvidencePage" },
     "investigation": { "$ref": "#/$defs/Snapshot" },
     "pair": { "$ref": "#/$defs/EnginePair" },
+    "reduction": { "$ref": "#/$defs/ReductionPage" },
     "report": { "$ref": "#/$defs/RunReport" }
   },
   "required": [
@@ -1516,7 +2039,8 @@
     "investigation",
     "event",
     "evidence",
-    "decision"
+    "decision",
+    "reduction"
   ],
   "title": "EvidenceContracts",
   "type": "object"

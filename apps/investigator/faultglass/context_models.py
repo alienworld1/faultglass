@@ -77,6 +77,7 @@ class EvidenceReference(ArtifactRef):
             self.owner.split("/")[0] + "/context",
             self.owner.split("/")[0] + "/planning",
             self.owner.split("/")[0] + "/runtime",
+            self.owner.split("/")[0] + "/reduction",
             *[
                 self.owner.split("/")[0] + f"/planning/{sequence}"
                 for sequence in range(1, 5)

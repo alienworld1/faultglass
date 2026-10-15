@@ -7,6 +7,7 @@ from .investigation_models import Admission, Event, EvidencePage, Snapshot
 from .jsonio import encode
 from .models import Contract, EnginePair, EngineSpec, FaultCase, RunReport
 from .planner_models import Decision
+from .reduction_models import ReductionPage
 
 
 def export_schema():
@@ -22,6 +23,7 @@ def export_schema():
         event=(Event, ...),
         evidence=(EvidencePage, ...),
         decision=(Decision, ...),
+        reduction=(ReductionPage, ...),
     )
     schema = envelope.model_json_schema(mode="serialization")
     schema["$defs"]["JsonValue"] = {

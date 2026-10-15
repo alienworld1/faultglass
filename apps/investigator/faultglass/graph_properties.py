@@ -115,9 +115,20 @@ class DivergenceProperties(BaseProperties):
     investigation_id: Short
     signature: Hash
     kind: Literal["status", "error", "result", "postcondition", "mixed"]
-    stable: Literal[False]
+    stable: bool
+    stability_source_artifact_ref: Text | None = None
+    stability_case_id: Hash | None = None
     comparison_version: Text
     artifact_ref: Text
+
+    @model_validator(mode="after")
+    def repeated_scope(self):
+        if self.stable != (
+            self.stability_source_artifact_ref is not None
+            and self.stability_case_id is not None
+        ):
+            raise ValueError("Stable evidence requires a repeat of the same case.")
+        return self
 
 
 class ProbeProperties(BaseProperties):

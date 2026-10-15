@@ -27,6 +27,7 @@ from .lifecycle import cleanup_deadline
 from .matrix import PAIRS, engines_for
 from .models import read_case
 from .probe_service import reconcile_result
+from .reduction_service import ReductionHandler, choose_source
 from .runner import OWNER, docker_client, verify_images
 from .worker_presence import WorkerPresence
 
@@ -37,6 +38,7 @@ class Worker:
         self.store = InvestigationStore(repository)
         self.id = str(uuid4())
         self.deadlines = {}
+        self.reduction = ReductionHandler(self)
 
     def cleanup(self):
         known = {}
@@ -119,6 +121,8 @@ class Worker:
                 load_evidence(self.store.root, record.reservation.childId)
             except ContextError:
                 self.clean_or_fail(record)
+                if snapshot.status == Status.REDUCING:
+                    return self.reduction.fail(record)
                 return self.stop(
                     record,
                     Status.FAILED,
@@ -126,6 +130,8 @@ class Worker:
                     "The comparison was interrupted before complete evidence was saved. Start a new investigation when ready.",
                 )
             return self.complete_execution(record)
+        if snapshot.status == Status.REDUCING:
+            return self.reduction.step(record, deadline)
         if snapshot.cancelRequestedAt:
             return self.stop(
                 record,
@@ -175,6 +181,7 @@ class Worker:
             inputSha256=record.inputRef.sha256,
             state="reserved",
             sequence=0,
+            purpose="seed",
             reservedAt=now(),
         )
         return self.store.commit(
@@ -191,6 +198,12 @@ class Worker:
         )
 
     def plan(self, record, deadline):
+        if record.snapshot.probeSequence > 0:
+            _identity, sequence = choose_source(self.store, record)
+            if sequence is not None or record.snapshot.budget.reservedProbes >= 4:
+                return self.reduction.enter(record, deadline)
+            if self.reduction.limit(record, deadline, executions=3):
+                return self.reduction.enter(record, deadline)
         job_id = record.snapshot.id
         snapshot = record.snapshot
         if snapshot.budget.reservedProbes >= 4:
@@ -201,6 +214,8 @@ class Worker:
                 "The experiment budget was reached.",
             )
         plan, phase = plan_next(self.repository, record)
+        if not plan.candidates and snapshot.probeSequence > 0:
+            return self.reduction.enter(record, deadline)
         if not plan.candidates:
             return self.stop(
                 record,
@@ -229,6 +244,8 @@ class Worker:
             inputSha256=plan.transformed_case_ref.sha256,
             state="reserved",
             sequence=plan.sequence,
+            purpose="probe",
+            ordinal=plan.sequence,
             reservedAt=now(),
         )
         budget = snapshot.budget.model_copy(
@@ -315,6 +332,8 @@ class Worker:
         return self.complete_execution(active)
 
     def complete_execution(self, record):
+        if record.snapshot.status == Status.REDUCING:
+            return self.reduction.complete(record)
         job_id = record.snapshot.id
         if record.snapshot.status == Status.REPRODUCING:
             phase, report, originals = seed_phase(self.repository, record)

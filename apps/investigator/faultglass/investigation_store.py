@@ -89,6 +89,10 @@ class InvestigationStore:
         if verify_outputs:
             for output in record.outputs:
                 read_reference(self.root, output)
+            if record.reductionRef:
+                from .reduction_reads import reduction_page
+
+                reduction_page(self, record)
         return record
 
     def lookup(self, key):
@@ -189,6 +193,9 @@ class InvestigationStore:
                 revision=snapshot.revision,
                 status=snapshot.status,
                 probeSequence=snapshot.probeSequence,
+                currentCaseId=snapshot.reduction.currentCaseId
+                if snapshot.reduction
+                else None,
             ),
         )
 
@@ -208,6 +215,21 @@ class InvestigationStore:
             self.repository._assert_ready()
             current = self.load(job_id, verify_outputs=status != Status.FAILED)
             snapshot = current.snapshot
+            if phase:
+                phase_key = digest(
+                    {
+                        "investigation": job_id,
+                        "phase": phase.phase_key,
+                        "attempt": snapshot.phaseAttempt,
+                        "handler": "runtime-v1",
+                    }
+                )
+                for previous in self.history(current):
+                    receipt = previous.phaseReceipt
+                    if receipt and receipt.key == phase_key:
+                        if receipt.payloadSha256 != phase.payload_sha256:
+                            raise IdentityConflict()
+                        return current
             if snapshot.status in TERMINAL or (
                 kind == "cancellation.requested" and snapshot.cancelRequestedAt
             ):
@@ -244,7 +266,33 @@ class InvestigationStore:
                     changes["terminalReason"]["message"],
                 )
             if target != snapshot.status:
-                transition(snapshot.status, target)
+                transition(snapshot.status, target, reducing=True)
+            if target == Status.CANCELLED and (
+                changes.get("reduction") or snapshot.reduction
+            ):
+                from .reduction_artifacts import ReductionStore
+                from .reduction_models import ReductionCheckpoint
+
+                storage = ReductionStore(self.root, job_id)
+                checkpoint_ref = (
+                    record_changes.get("reductionRef") or current.reductionRef
+                )
+                if isinstance(checkpoint_ref, dict):
+                    checkpoint_ref = EvidenceReference.model_validate(checkpoint_ref)
+                checkpoint = ReductionCheckpoint.model_validate(
+                    loads(read_reference(self.root, checkpoint_ref))
+                )
+                checkpoint.summary.state = "cancelled"
+                checkpoint.summary.stopReason = "cancelled"
+                checkpoint.summary.finalCaseRef = storage.put(
+                    "reduced.faultglass.json",
+                    read_reference(self.root, checkpoint.summary.currentCaseRef),
+                )
+                fresh_ref = storage.document("checkpoint", checkpoint)
+                changes["reduction"] = checkpoint.summary.model_dump()
+                record_changes["reductionRef"] = fresh_ref.model_dump()
+                outputs = [fresh_ref]
+                record_changes["reservation"] = None
             if target in TERMINAL:
                 changes["finishedAt"] = now()
                 record_changes["workerId"] = None
@@ -284,6 +332,24 @@ class InvestigationStore:
                     ),
                 }
             )
+            if record.reductionRef:
+                from .reduction_artifacts import ReductionStore
+                from .reduction_models import ReductionAttempt
+
+                checkpoint = ReductionStore(self.root, job_id).checkpoint(record)
+                attempt = checkpoint.activeAttempt
+                if (
+                    attempt is None
+                    and checkpoint.attempts
+                    and kind in {"reduction.accepted", "reduction.rejected"}
+                ):
+                    attempt = ReductionAttempt.model_validate(
+                        loads(read_reference(self.root, checkpoint.attempts[-1]))
+                    )
+                if attempt:
+                    record.event.data.attemptId = attempt.id
+                    record.event.data.attemptOrdinal = attempt.ordinal
+                record.event.data.references = [record.reductionRef]
             if phase:
                 record.phaseReceipt = PhaseReceipt(
                     key=digest(
@@ -304,6 +370,10 @@ class InvestigationStore:
                         fresh.probeSequence,
                     ),
                     attempt=fresh.phaseAttempt,
+                    purpose=current.reservation.purpose
+                    if current.reservation
+                    else None,
+                    ordinal=current.reservation.ordinal if current.reservation else 0,
                     previous=previous_ref,
                     inputs=[current.inputRef],
                     outputs=list(outputs),
@@ -318,6 +388,10 @@ class InvestigationStore:
 
         snapshot = record.snapshot
         used = owned_bytes(self, current or record)
+        if record.reservation and (
+            not current or current.reservation != record.reservation
+        ):
+            used = max(used, owned_bytes(self, record))
         for _ in range(4):
             charged = used + len(encode(record.model_dump()))
             record.snapshot.budget.chargedBytes = charged

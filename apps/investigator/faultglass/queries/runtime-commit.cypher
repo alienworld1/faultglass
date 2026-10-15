@@ -49,5 +49,10 @@ FOREACH (entry IN $PRODUCED |
  MERGE (b:Divergence {id:entry.target_id})
  MERGE (a)-[r:PRODUCED {id:entry.properties.id}]->(b) ON CREATE SET r += entry.properties
 )
+FOREACH (entry IN $REDUCED_TO |
+ MERGE (a:Divergence {id:entry.source_id})
+ MERGE (b:FaultCase {id:entry.target_id})
+ MERGE (a)-[r:REDUCED_TO {id:entry.properties.id}]->(b) ON CREATE SET r += entry.properties
+)
 SET i += $props
 RETURN i.id, i.revision

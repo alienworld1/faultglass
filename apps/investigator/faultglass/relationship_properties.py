@@ -26,6 +26,8 @@ class FingerprintLinkProperties(ProvenanceProperties):
 class ExecutionLinkProperties(ProvenanceProperties):
     sequence: Annotated[int, Field(ge=0)]
     probe_id: Short | None = None
+    purpose: Literal["stability", "reduction"] | None = None
+    ordinal: Annotated[int, Field(ge=1, le=4)] | None = None
 
 
 class SelectionProperties(ProvenanceProperties):
@@ -58,7 +60,17 @@ class EffectivenessProperties(ProvenanceProperties):
         return self
 
 
+class ReductionLinkProperties(ProvenanceProperties):
+    investigation_id: Short
+    attempt_id: Hash
+    ordinal: Annotated[int, Field(ge=1, le=32)]
+    parent_case_id: Hash
+    verification_evidence_id: Short
+    reference_signature: Hash
+
+
 PROPERTY_MODELS = {
+    "REDUCED_TO": ReductionLinkProperties,
     "HAS_FINGERPRINT": FingerprintLinkProperties,
     "EXECUTED_AS": ExecutionLinkProperties,
     "SELECTED_PROBE": SelectionProperties,

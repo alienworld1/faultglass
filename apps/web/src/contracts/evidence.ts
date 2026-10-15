@@ -172,7 +172,10 @@ export type Label = string;
 export type Lineage = "legacy-c" | "rust";
 export type Repository = "FalkorDB/FalkorDB";
 export type At = string;
+export type Attemptid = string | null;
+export type Attemptordinal = number | null;
 export type Childid = string | null;
+export type Currentcaseid = string | null;
 export type Probesequence = number;
 /**
  * @maxItems 3
@@ -211,6 +214,11 @@ export type Type =
   | "engine.observed"
   | "divergence.detected"
   | "graph.write"
+  | "reduction.started"
+  | "reduction.verifying"
+  | "reduction.accepted"
+  | "reduction.rejected"
+  | "reduction.finished"
   | "cancellation.requested"
   | "investigation.not_reproduced"
   | "investigation.unresolved"
@@ -302,16 +310,19 @@ export type Items = EvidenceItem[];
 export type Nextcursor = number | null;
 export type Revision1 = number;
 export type Chargedbytes = number;
+export type Consideredattempts = number;
 export type Maxartifactbytes = 67108864;
 export type Maxevents = 512;
 export type Maxprobes = 4;
 export type Maxseconds = 900;
-export type Reducercandidates = 0;
+export type Reducercandidates = 0 | 4;
+export type Reservedcandidates = number;
 export type Reservedprobes = number;
+export type Stabilitychecks = number;
 export type Cancelrequestedat = string | null;
 export type Classifying = false;
 export type Exporting = false;
-export type Reducing = false;
+export type Reducing = boolean;
 export type Createdat = string;
 export type Deadlineat = string;
 /**
@@ -344,6 +355,50 @@ export type Status2 =
   | "FAILED";
 export type Phaseattempt = number;
 export type Probesequence1 = number;
+export type Acceptedcount = number;
+export type Consideredcount = number;
+export type Currentcaseid1 = string;
+export type Executablebytes = number;
+export type Querytokens = number;
+export type Setupstatements = number;
+export type Setuptokens = number;
+export type Rejectedcount = number;
+export type Reservedcandidates1 = number;
+/**
+ * @minItems 2
+ * @maxItems 2
+ */
+export type Engines1 = [EngineSpec, EngineSpec];
+export type Reducerversion = "reducer-v1";
+export type Baselineobservationdigest = string;
+export type Changeddimensions = string[];
+export type Comparisonversion = string;
+export type Kind3 = "status" | "error" | "result" | "postcondition" | "mixed";
+export type Signature = string;
+export type Targetobservationdigest = string;
+export type Sourcecaseid = string;
+export type Sourceevidenceid = string;
+export type Sourcekind = "seed" | "probe";
+export type Sourceprobesequence = number | null;
+export type Stabilityevidenceid = string | null;
+export type Stable = boolean;
+export type State =
+  "checking" | "proposing" | "verifying" | "finished" | "cancelled" | "failed";
+export type Stopreason =
+  | (
+      | "supported_passes_exhausted"
+      | "unsupported_shape"
+      | "candidate_limit"
+      | "consideration_limit"
+      | "time_limit"
+      | "storage_limit"
+      | "event_limit"
+      | "unstable_source"
+      | "cancelled"
+      | "verification_failed"
+    )
+  | null;
+export type Verificationfailures = number;
 export type Revision2 = number;
 export type Schemaversion1 = 1;
 export type Seedevidenceid = string | null;
@@ -382,20 +437,204 @@ export type Baselineid = string;
 export type Id5 = string;
 export type Label1 = string;
 export type Targetid = string;
-export type Bytes1 = number;
+/**
+ * @maxItems 10
+ */
+export type Attempts1 =
+  | []
+  | [ReductionAttemptView]
+  | [ReductionAttemptView, ReductionAttemptView]
+  | [ReductionAttemptView, ReductionAttemptView, ReductionAttemptView]
+  | [
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+    ]
+  | [
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+    ]
+  | [
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+    ]
+  | [
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+    ]
+  | [
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+    ]
+  | [
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+    ]
+  | [
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+      ReductionAttemptView,
+    ];
+/**
+ * @maxItems 10
+ */
+export type Artifactrefs =
+  | []
+  | [EvidenceReference]
+  | [EvidenceReference, EvidenceReference]
+  | [EvidenceReference, EvidenceReference, EvidenceReference]
+  | [EvidenceReference, EvidenceReference, EvidenceReference, EvidenceReference]
+  | [
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+    ]
+  | [
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+    ]
+  | [
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+    ]
+  | [
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+    ]
+  | [
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+    ]
+  | [
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+      EvidenceReference,
+    ];
+export type Candidatecaseid = string | null;
+export type Candidatepayloadsha256 = string;
+export type Description1 = string;
+export type End1 = number | null;
+export type Originaltextsha256 = string;
+export type Setupindex = number | null;
+export type Start1 = number | null;
+export type Createdat1 = string;
 export type Id6 = string;
-export type Kind3 = string;
+export type Ordinal = number;
+export type Parentcaseid = string;
+export type Phase = "query" | "fixture";
+export type Reason2 =
+  | (
+      | "invalid_candidate"
+      | "unsupported_shape"
+      | "not_smaller"
+      | "duplicate"
+      | "difference_eliminated"
+      | "signature_changed"
+      | "verified"
+      | "execution_failure"
+      | "integrity_failure"
+    )
+  | null;
+export type Resolvedat = string | null;
+export type State1 =
+  "proposed" | "verifying" | "accepted" | "rejected" | "failed";
+export type Transformid =
+  | "remove-with-v1"
+  | "remove-optional-v1"
+  | "remove-match-v1"
+  | "remove-setup-v1";
+export type Verificationevidenceid = string | null;
+export type Caseid = string;
+export type Nextsetupcursor = number | null;
+export type Query3 = string;
+/**
+ * @maxItems 8
+ */
+export type Setup1 =
+  | []
+  | [string]
+  | [string, string]
+  | [string, string, string]
+  | [string, string, string, string]
+  | [string, string, string, string, string]
+  | [string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string];
+export type Setuptotal = number;
+export type Nextcursor1 = number | null;
+export type Revision3 = number;
+export type Bytes1 = number;
+export type Id7 = string;
+export type Kind4 = string;
 export type Mediatype1 = string;
 export type Path1 = string;
 export type Sha2561 = string;
 export type Artifacts = ArtifactRef[];
 export type Casecontenthash = string;
-export type Baselineobservationdigest = string;
-export type Changeddimensions = string[];
-export type Comparisonversion = string;
-export type Kind4 = "status" | "error" | "result" | "postcondition" | "mixed";
-export type Signature = string;
-export type Targetobservationdigest = string;
 export type Code1 = string;
 export type Enginerole = ("baseline" | "target") | null;
 export type Message1 = string;
@@ -439,6 +678,7 @@ export interface EvidenceContracts {
   evidence: EvidencePage;
   investigation: Snapshot;
   pair: EnginePair;
+  reduction: ReductionPage;
   report: RunReport;
 }
 export interface Admission {
@@ -602,7 +842,10 @@ export interface Event {
   type: Type;
 }
 export interface EventData {
+  attemptId?: Attemptid;
+  attemptOrdinal?: Attemptordinal;
   childId?: Childid;
+  currentCaseId?: Currentcaseid;
   probeSequence: Probesequence;
   references?: References;
   revision: Revision;
@@ -649,6 +892,7 @@ export interface Snapshot {
   phase: Status2;
   phaseAttempt: Phaseattempt;
   probeSequence: Probesequence1;
+  reduction: ReductionSummary | null;
   revision: Revision2;
   schemaVersion: Schemaversion1;
   seedEvidenceId: Seedevidenceid;
@@ -661,17 +905,62 @@ export interface Snapshot {
 }
 export interface Budget {
   chargedBytes: Chargedbytes;
+  consideredAttempts: Consideredattempts;
   maxArtifactBytes: Maxartifactbytes;
   maxEvents: Maxevents;
   maxProbes: Maxprobes;
   maxSeconds: Maxseconds;
   reducerCandidates: Reducercandidates;
+  reservedCandidates: Reservedcandidates;
   reservedProbes: Reservedprobes;
+  stabilityChecks: Stabilitychecks;
 }
 export interface Capabilities {
   classifying: Classifying;
   exporting: Exporting;
   reducing: Reducing;
+}
+export interface ReductionSummary {
+  acceptedCount: Acceptedcount;
+  consideredCount: Consideredcount;
+  currentCaseId: Currentcaseid1;
+  currentCaseRef: EvidenceReference;
+  currentSize: CaseSize;
+  finalCaseRef: EvidenceReference | null;
+  originalSize: CaseSize;
+  rejectedCount: Rejectedcount;
+  reservedCandidates: Reservedcandidates1;
+  source: ReductionSource;
+  sourceSize: CaseSize;
+  state: State;
+  stopReason: Stopreason;
+  verificationFailures: Verificationfailures;
+}
+export interface CaseSize {
+  executableBytes: Executablebytes;
+  queryTokens: Querytokens;
+  setupStatements: Setupstatements;
+  setupTokens: Setuptokens;
+}
+export interface ReductionSource {
+  engines: Engines1;
+  reducerVersion: Reducerversion;
+  referenceDivergence: Divergence;
+  sourceCaseId: Sourcecaseid;
+  sourceCaseRef: EvidenceReference;
+  sourceEvidenceId: Sourceevidenceid;
+  sourceKind: Sourcekind;
+  sourceProbeSequence: Sourceprobesequence;
+  stabilityEvidenceId: Stabilityevidenceid;
+  stable: Stable;
+}
+export interface Divergence {
+  baselineObservationDigest: Baselineobservationdigest;
+  changedDimensions: Changeddimensions;
+  comparisonVersion: Comparisonversion;
+  kind: Kind3;
+  signature: Signature;
+  targetObservationDigest: Targetobservationdigest;
 }
 export interface Reason1 {
   code: Code;
@@ -682,6 +971,57 @@ export interface EnginePair {
   id: Id5;
   label: Label1;
   targetId: Targetid;
+}
+export interface ReductionPage {
+  attempts: Attempts1;
+  case: ReductionCaseView | null;
+  nextCursor: Nextcursor1;
+  revision: Revision3;
+  sourceCase: ReductionCaseView | null;
+  sourceObservations: PairedSummary | null;
+  stabilityObservations: PairedSummary | null;
+  summary: ReductionSummary | null;
+}
+export interface ReductionAttemptView {
+  attempt: ReductionAttempt;
+  candidate: ReductionCaseView | null;
+  observations: PairedSummary | null;
+  parent: ReductionCaseView | null;
+}
+export interface ReductionAttempt {
+  afterSize: CaseSize | null;
+  artifactRefs: Artifactrefs;
+  beforeSize: CaseSize;
+  candidateCaseId: Candidatecaseid;
+  candidatePayloadSha256: Candidatepayloadsha256;
+  candidateRef: EvidenceReference;
+  change: ReductionChange;
+  createdAt: Createdat1;
+  id: Id6;
+  observedDivergence: Divergence | null;
+  ordinal: Ordinal;
+  parentCaseId: Parentcaseid;
+  phase: Phase;
+  reason: Reason2;
+  resolvedAt: Resolvedat;
+  state: State1;
+  transformId: Transformid;
+  verificationEvidenceId: Verificationevidenceid;
+}
+export interface ReductionChange {
+  description: Description1;
+  end: End1;
+  originalTextSha256: Originaltextsha256;
+  setupIndex: Setupindex;
+  start: Start1;
+}
+export interface ReductionCaseView {
+  caseId: Caseid;
+  caseRef: EvidenceReference;
+  nextSetupCursor: Nextsetupcursor;
+  query: Query3;
+  setup: Setup1;
+  setupTotal: Setuptotal;
 }
 export interface RunReport {
   artifacts: Artifacts;
@@ -698,19 +1038,11 @@ export interface RunReport {
 }
 export interface ArtifactRef {
   bytes: Bytes1;
-  id: Id6;
-  kind: Kind3;
+  id: Id7;
+  kind: Kind4;
   mediaType: Mediatype1;
   path: Path1;
   sha256: Sha2561;
-}
-export interface Divergence {
-  baselineObservationDigest: Baselineobservationdigest;
-  changedDimensions: Changeddimensions;
-  comparisonVersion: Comparisonversion;
-  kind: Kind4;
-  signature: Signature;
-  targetObservationDigest: Targetobservationdigest;
 }
 export interface Failure {
   code: Code1;
