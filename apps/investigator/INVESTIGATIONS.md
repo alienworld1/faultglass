@@ -129,4 +129,6 @@ python -m pytest tests/live/test_explorer_memory.py -s
 
 This requires an actual complete Explorer tool loop and a changed fresh related-case ranking attributable to the earlier contribution. Missing credentials, provider degradation, or an unchanged order fails explicitly. It preserves its isolated proof graph and prints only public case/provenance identities. Runtime cost affects the existing planner, so an increased score without an order change is not proof of improved action.
 
+The live check spaces provider calls by twenty seconds. Both investigations use `FAULTGLASS_GEMINI_MODEL` by default. To spread free-tier usage across two available models, explicitly set `FAULTGLASS_LIVE_RELATED_MODEL` for the second admission. Each investigation still requires its own complete live tool loop, records its configured model, and uses the same deterministic planner and evidence checks. This option applies only to the live check; the worker never silently changes models.
+
 Recovery tests inject barriers only in test subprocesses. They cover complete-child reconciliation without execution, incomplete work failure, real graph rollback and lost acknowledgment, admission/cancel races, replay cursors, queue/deadline controls, and existing CLI compatibility. The worker has no production crash switches.

@@ -115,6 +115,10 @@ def test_live_explorer_changes_a_fresh_related_action(tmp_path, monkeypatch):
     )
     a = advance(worker, a)
     assert_live(worker, a)
+    related_model = os.environ.get("FAULTGLASS_LIVE_RELATED_MODEL")
+    if related_model:
+        monkeypatch.setenv("FAULTGLASS_GEMINI_MODEL", related_model)
+        print(f"Related investigation model: {related_model}", flush=True)
     b, _ = worker.store.admit(
         Admission(caseFile=encode(RELATED).decode(), pairId="call-yield-c-rust"),
         str(uuid4()),
