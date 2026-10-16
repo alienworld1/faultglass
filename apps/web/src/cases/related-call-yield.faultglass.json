@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "title": "Trailing MATCH with two node labels",
+  "setup": ["CREATE (:N), (:Other)"],
+  "query": "CALL db.labels() YIELD label MATCH (other)",
+  "observation": {
+    "compareResult": true,
+    "ordering": "unordered"
+  },
+  "metadata": {
+    "source": "https://github.com/FalkorDB/FalkorDB/issues/3279"
+  }
+}

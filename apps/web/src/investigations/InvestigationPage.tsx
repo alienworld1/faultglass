@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { request, terminal } from "./api";
 import { useInvestigation } from "./useInvestigation";
+import InvestigationConclusion from "./InvestigationConclusion";
 import ReductionLineage from "./ReductionLineage";
 import { reductionAction } from "./reductionCopy";
 import EvidenceDisclosure from "./EvidenceDisclosure";
@@ -12,6 +13,9 @@ const labels: Record<string, string> = {
   PLANNING: "Choosing an experiment",
   PROBING: "Running an experiment",
   REDUCING: "Looking for a smaller case.",
+  CLASSIFYING: "Comparing fault-family evidence…",
+  EXPORTING: "Preparing downloads and saving investigation memory…",
+  COMPLETE: "Investigation complete.",
   NOT_REPRODUCED: "No difference observed for this case and engine pair.",
   UNRESOLVED: "Investigation ended without a supported conclusion.",
   CANCELLED: "Investigation cancelled. Collected evidence is preserved.",
@@ -24,10 +28,8 @@ export default function InvestigationPage({ id }: { id: string }) {
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(30);
-  const { snapshot, reduction, events, connection, missing } = useInvestigation(
-    id,
-    retry,
-  );
+  const { snapshot, reduction, conclusion, events, connection, missing } =
+    useInvestigation(id, retry);
   async function cancel() {
     setCancelPending(true);
     try {
@@ -51,6 +53,12 @@ export default function InvestigationPage({ id }: { id: string }) {
             [
               "reduction.accepted",
               "reduction.finished",
+              "family.matched",
+              "family.provisional",
+              "family.unresolved",
+              "export.ready",
+              "memory.updated",
+              "investigation.complete",
               "investigation.failed",
               "investigation.cancelled",
             ].includes(event.type),
@@ -125,6 +133,7 @@ export default function InvestigationPage({ id }: { id: string }) {
               <button
                 className="mt-5 min-h-11 border border-line px-4 disabled:opacity-50"
                 disabled={
+                  ["CLASSIFYING", "EXPORTING"].includes(snapshot.status) ||
                   cancelPending ||
                   cancelled ||
                   Boolean(snapshot.cancelRequestedAt)
@@ -136,6 +145,11 @@ export default function InvestigationPage({ id }: { id: string }) {
                   : "Cancel investigation"}
               </button>
             ) : null}
+            {["CLASSIFYING", "EXPORTING"].includes(snapshot.status) ? (
+              <p className="mt-2 text-sm text-muted">
+                This investigation is finishing and can no longer be cancelled.
+              </p>
+            ) : null}
             {error ? (
               <p role="status" className="mt-4 text-sm text-failure">
                 {error}
@@ -143,6 +157,13 @@ export default function InvestigationPage({ id }: { id: string }) {
             ) : null}
           </div>
           {reduction ? <ReductionLineage id={id} page={reduction} /> : null}
+          {conclusion ? (
+            <InvestigationConclusion
+              id={id}
+              page={conclusion}
+              snapshot={snapshot}
+            />
+          ) : null}
           <EvidenceDisclosure id={id} revision={snapshot.revision} />
           <div className="border-b border-line py-6">
             <h3 className="font-semibold">Chronological trace</h3>

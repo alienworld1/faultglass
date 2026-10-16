@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import type { Event, Snapshot, ReductionPage } from "../contracts/evidence";
+import type {
+  Event,
+  Snapshot,
+  ReductionPage,
+  ConclusionPage,
+} from "../contracts/evidence";
 import type { SavedReduction } from "./api";
 import { eventTypes, parseEvent, request, terminal, RequestError } from "./api";
 
@@ -7,7 +12,8 @@ export function useInvestigation(id: string, retry: number) {
   const [savedState, setSavedState] = useState<{
     snapshot: Snapshot | null;
     reduction: SavedReduction | null;
-  }>({ snapshot: null, reduction: null });
+    conclusion: ConclusionPage | null;
+  }>({ snapshot: null, reduction: null, conclusion: null });
   const snapshot = savedState.snapshot?.id === id ? savedState.snapshot : null;
   const reduction = snapshot ? savedState.reduction : null;
   const [events, setEvents] = useState<Event[]>([]);
@@ -26,34 +32,40 @@ export function useInvestigation(id: string, retry: number) {
         const saved = await request<Snapshot>(`/api/investigations/${id}`, {
           signal: controller.signal,
         });
-        let page: SavedReduction | null = null;
-        if (saved.reduction) {
-          let loaded: SavedReduction = await request<ReductionPage>(
-            `/api/investigations/${id}/reduction`,
-            { signal: controller.signal },
-          );
-          while (loaded.nextCursor !== null) {
+        const [conclusion, initialReduction] = await Promise.all([
+          request<ConclusionPage>(`/api/investigations/${id}/conclusion`, {
+            signal: controller.signal,
+          }),
+          saved.reduction
+            ? request<ReductionPage>(`/api/investigations/${id}/reduction`, {
+                signal: controller.signal,
+              })
+            : Promise.resolve(null),
+        ]);
+        let page: SavedReduction | null = initialReduction;
+        if (page) {
+          while (page.nextCursor !== null) {
             const next: ReductionPage = await request<ReductionPage>(
-              `/api/investigations/${id}/reduction?cursor=${loaded.nextCursor}`,
+              `/api/investigations/${id}/reduction?cursor=${page.nextCursor}`,
               { signal: controller.signal },
             );
-            if (next.revision !== loaded.revision) break;
-            loaded = {
-              ...loaded,
-              attempts: [...loaded.attempts, ...next.attempts].slice(0, 32),
+            if (next.revision !== page.revision) break;
+            page = {
+              ...page,
+              attempts: [...page.attempts, ...next.attempts].slice(0, 32),
               nextCursor: next.nextCursor,
             };
           }
-          page = loaded;
           if (page.revision !== saved.revision || page.nextCursor !== null)
             continue;
         }
+        if (conclusion.revision !== saved.revision) continue;
         if (!disposed) {
           setSavedState((previous) =>
             !previous.snapshot ||
             previous.snapshot.id !== id ||
             saved.revision >= previous.snapshot.revision
-              ? { snapshot: saved, reduction: page }
+              ? { snapshot: saved, reduction: page, conclusion }
               : previous,
           );
         }
@@ -177,6 +189,7 @@ export function useInvestigation(id: string, retry: number) {
   return {
     snapshot,
     reduction,
+    conclusion: snapshot ? savedState.conclusion : null,
     events: events.filter((event) => event.investigationId === id),
     connection,
     missing,

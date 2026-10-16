@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { EnginePair, EngineSpec, Snapshot } from "../contracts/evidence";
+import relatedCase from "../cases/related-call-yield.faultglass.json";
 import builtInCase from "../cases/call-yield.faultglass.json";
 import { request, RequestError } from "./api";
 
@@ -29,6 +30,7 @@ export default function CaseIntake({
   navigate: (path: string) => void;
 }) {
   const [matrix, setMatrix] = useState<Matrix | null>(null);
+  const [agentNotice, setAgentNotice] = useState("");
   const [ready, setReady] = useState(false);
   const [pairId, setPairId] = useState("call-yield-c-rust");
   const [caseFile, setCaseFile] = useState(builtIn);
@@ -50,10 +52,19 @@ export default function CaseIntake({
         workerReady: boolean;
         contextReady: boolean;
         executionReady: boolean;
+        agentReady: boolean;
+        agentMode: string;
       }>("/api/health", { signal: controller.signal }),
     ])
       .then(([catalog, health]) => {
         setMatrix(catalog);
+        setAgentNotice(
+          health.agentMode === "deterministic_diagnostic"
+            ? "AI investigation is disabled for this diagnostic session."
+            : health.agentReady
+              ? "AI investigation is available for built-in public cases."
+              : "AI investigation is unavailable. Verified evidence will still be preserved.",
+        );
         setReady(
           health.workerReady && health.contextReady && health.executionReady,
         );
@@ -213,7 +224,17 @@ export default function CaseIntake({
               setRetry((value) => value + 1);
             }}
           >
-            Use built-in case
+            Trailing MATCH after a procedure call
+          </button>
+          <button
+            type="button"
+            className="mt-3 block min-h-11 border border-line px-4 text-left"
+            onClick={() => {
+              setCaseFile(JSON.stringify(relatedCase, null, 2));
+              setRetry((value) => value + 1);
+            }}
+          >
+            Trailing MATCH with two node labels
           </button>
           <label htmlFor="case-file" className="mt-5 block text-sm">
             Or import a .faultglass.json file
@@ -283,6 +304,9 @@ export default function CaseIntake({
           className="mb-4 text-sm text-muted"
         >
           {message}
+          {agentNotice ? (
+            <span className="mt-2 block">{agentNotice}</span>
+          ) : null}
         </p>
         <button
           type="button"
