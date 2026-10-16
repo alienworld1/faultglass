@@ -7,6 +7,8 @@ from .jsonio import encode, loads
 from .llm_provider import OPERATIONS, ProviderFailure, validate_citations
 from .provider_budget import CALL_SECONDS
 
+NATIVE_TOOL_MODELS = frozenset({"gemma-4-26b-a4b-it", "gemma-4-31b-it"})
+
 SYSTEM = (
     "You are the Explorer for a database evidence investigation. "
     "Request exactly one allowed trusted tool per turn using the supplied IDs and revision. "
@@ -17,12 +19,16 @@ SYSTEM = (
     "never private reasoning. Use the required JSON schema. When enrichment is requested, populate "
     "its observed/interpretation/unknown fields. Otherwise enrichment must be null. "
     "For tool requests use the supplied investigationId, revision and decisionId exactly."
+    " Copy citation IDs exactly from the top-level evidenceIds array; never generate or abbreviate them."
 )
 
 
 def agent_readiness():
     mode = os.environ.get("FAULTGLASS_INVESTIGATION_MODE", "agent")
     model = os.environ.get("FAULTGLASS_GEMINI_MODEL", "")
+    valid_model = bool(
+        re.fullmatch(r"gemini-[a-z0-9.-]{1,100}", model) or model in NATIVE_TOOL_MODELS
+    )
     reason = None
     if mode == "deterministic_diagnostic":
         reason = "deterministic_diagnostic"
@@ -30,15 +36,13 @@ def agent_readiness():
         reason = "invalid_mode"
     elif not os.environ.get("GEMINI_API_KEY"):
         reason = "missing_key"
-    elif not re.fullmatch(r"gemini-[a-z0-9.-]{1,100}", model):
+    elif not valid_model:
         reason = "missing_or_invalid_model"
     return {
         "agentReady": reason is None,
         "agentMode": mode if mode in {"agent", "deterministic_diagnostic"} else "agent",
         "agentReason": reason,
-        "agentModel": model
-        if re.fullmatch(r"gemini-[a-z0-9.-]{1,100}", model)
-        else None,
+        "agentModel": model if valid_model else None,
     }
 
 
@@ -49,6 +53,7 @@ class GeminiProvider:
             raise ProviderFailure(ready["agentReason"])
         self.model = ready["agentModel"]
         self._key = os.environ["GEMINI_API_KEY"]
+        self._native_tools = self.model in NATIVE_TOOL_MODELS
 
     def generate(self, operation, context):
         output = OPERATIONS[operation]
@@ -56,6 +61,10 @@ class GeminiProvider:
         if len(application) > 32768:
             raise ProviderFailure("input_limit")
         schema = output.model_json_schema()
+        schema["$defs"]["CitedText"]["properties"]["evidenceIds"]["items"] = {
+            "type": "string",
+            "enum": sorted(set(context["evidenceIds"])),
+        }
         if operation == "request_tool":
             for name in ("investigationId", "revision", "decisionId"):
                 value = context[name]
@@ -74,33 +83,51 @@ class GeminiProvider:
             if not context.get("enrichmentRequired"):
                 schema["properties"]["enrichment"] = {"type": "null"}
                 schema["$defs"].pop("FingerprintEnrichment", None)
-        body = encode(
-            {
-                "systemInstruction": {"parts": [{"text": SYSTEM}]},
-                "contents": [
-                    {"role": "user", "parts": [{"text": application.decode()}]}
-                ],
-                "generationConfig": {
-                    "temperature": 0,
-                    "maxOutputTokens": 1024,
-                    "thinkingConfig": {
-                        "thinkingLevel": "low"
-                        if self.model
-                        in {
-                            "gemini-3.8-flash",
-                            "gemini-3.7-flash",
-                            "gemini-flash-latest",
-                        }
-                        else "minimal"
+        payload = {
+            "systemInstruction": {"parts": [{"text": SYSTEM}]},
+            "contents": [{"role": "user", "parts": [{"text": application.decode()}]}],
+            "generationConfig": {
+                "temperature": 0,
+                "maxOutputTokens": 1024,
+                "thinkingConfig": {
+                    "thinkingLevel": "low"
+                    if self.model
+                    in {
+                        "gemini-3.8-flash",
+                        "gemini-3.7-flash",
+                        "gemini-flash-latest",
                     }
-                    if self.model.startswith("gemini-3")
-                    or self.model in {"gemini-flash-latest", "gemini-flash-lite-latest"}
-                    else {"thinkingBudget": 0},
-                    "responseMimeType": "application/json",
-                    "responseJsonSchema": schema,
-                },
+                    else "minimal"
+                }
+                if self.model.startswith("gemini-3")
+                or self.model in {"gemini-flash-latest", "gemini-flash-lite-latest"}
+                or self._native_tools
+                else {"thinkingBudget": 0},
+                "responseMimeType": "application/json",
+                "responseJsonSchema": schema,
+            },
+        }
+        if self._native_tools:
+            payload["generationConfig"].pop("responseMimeType")
+            payload["generationConfig"].pop("responseJsonSchema")
+            payload["tools"] = [
+                {
+                    "functionDeclarations": [
+                        {
+                            "name": operation,
+                            "description": "Return the required evidence-cited investigation response.",
+                            "parametersJsonSchema": schema,
+                        }
+                    ]
+                }
+            ]
+            payload["toolConfig"] = {
+                "functionCallingConfig": {
+                    "mode": "ANY",
+                    "allowedFunctionNames": [operation],
+                }
             }
-        )
+        body = encode(payload)
         request = urllib.request.Request(
             "https://generativelanguage.googleapis.com/v1beta/models/"
             + self.model
@@ -116,10 +143,9 @@ class GeminiProvider:
                 raise ProviderFailure("response_limit")
             envelope = loads(raw)
             parts = envelope["candidates"][0]["content"]["parts"]
-            texts = [p["text"] for p in parts if "text" in p and not p.get("thought")]
-            if len(texts) != 1:
-                raise ProviderFailure("invalid_output")
-            result = output.model_validate(loads(texts[0]))
+            result = output.model_validate(
+                response_value(parts, operation, native=self._native_tools)
+            )
             validate_citations(result, context["evidenceIds"])
             return result
         except ProviderFailure:
@@ -132,3 +158,19 @@ class GeminiProvider:
             raise ProviderFailure("provider_timeout") from None
         except (OSError, ValueError, KeyError, IndexError, TypeError):
             raise ProviderFailure("invalid_or_unavailable_output") from None
+
+
+def response_value(parts, operation, *, native):
+    public = [part for part in parts if not part.get("thought")]
+    if native:
+        if (
+            len(public) != 1
+            or "functionCall" not in public[0]
+            or public[0]["functionCall"].get("name") != operation
+        ):
+            raise ProviderFailure("invalid_output")
+        return public[0]["functionCall"]["args"]
+    texts = [part["text"] for part in public if "text" in part]
+    if len(texts) != 1:
+        raise ProviderFailure("invalid_output")
+    return loads(texts[0])

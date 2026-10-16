@@ -11,12 +11,18 @@ from faultglass.llm_provider import ProviderFailure
 CITATION = {"text": "Observed a version-scoped difference.", "evidenceIds": ["a" * 64]}
 
 
-@pytest.fixture
-def provider(monkeypatch):
+@pytest.fixture(params=["gemini-2.5-flash-lite", "gemma-4-26b-a4b-it"])
+def provider(monkeypatch, request):
     monkeypatch.setenv("GEMINI_API_KEY", "private-unit-credential")
-    monkeypatch.setenv("FAULTGLASS_GEMINI_MODEL", "gemini-2.5-flash-lite")
+    monkeypatch.setenv("FAULTGLASS_GEMINI_MODEL", request.param)
     monkeypatch.setenv("FAULTGLASS_INVESTIGATION_MODE", "agent")
     return GeminiProvider()
+
+
+def response_parts(provider, operation, value):
+    if provider.model.startswith("gemma-"):
+        return [{"functionCall": {"name": operation, "args": value}}]
+    return [{"text": encode(value).decode()}]
 
 
 @pytest.mark.parametrize(
@@ -43,6 +49,20 @@ def provider(monkeypatch):
             "suggest_reduction",
             dict(query="CALL db.labels() YIELD label MATCH (n)", reason=CITATION),
         ),
+        (
+            "interpretation",
+            dict(
+                family=dict(
+                    proposedName="Trailing required match",
+                    observed=CITATION,
+                    interpretation=CITATION,
+                    unknown=CITATION,
+                ),
+                narrative=dict(
+                    observed=CITATION, interpretation=CITATION, unknown=CITATION
+                ),
+            ),
+        ),
     ],
 )
 def test_structured_operations_validate_schema_citations_and_transport(
@@ -50,14 +70,33 @@ def test_structured_operations_validate_schema_citations_and_transport(
 ):
     @contextmanager
     def response(request, timeout):
-        assert timeout == 8
+        assert timeout == 15
         assert request.full_url.startswith("https://generativelanguage.googleapis.com/")
         assert b"private-unit-credential" not in request.data
+        body = loads(request.data)
+        if provider.model.startswith("gemma-"):
+            assert "responseJsonSchema" not in body["generationConfig"]
+            assert body["toolConfig"]["functionCallingConfig"] == {
+                "mode": "ANY",
+                "allowedFunctionNames": [operation],
+            }
+            assert body["tools"][0]["functionDeclarations"][0]["name"] == operation
+            schema = body["tools"][0]["functionDeclarations"][0]["parametersJsonSchema"]
+        else:
+            schema = body["generationConfig"]["responseJsonSchema"]
+        assert schema["$defs"]["CitedText"]["properties"]["evidenceIds"]["items"] == {
+            "type": "string",
+            "enum": ["a" * 64],
+        }
         yield io.BytesIO(
             encode(
                 {
                     "candidates": [
-                        {"content": {"parts": [{"text": encode(value).decode()}]}}
+                        {
+                            "content": {
+                                "parts": response_parts(provider, operation, value)
+                            }
+                        }
                     ]
                 }
             )
@@ -104,6 +143,38 @@ def test_application_and_response_caps_fail_closed(provider, monkeypatch):
         provider.generate("enrich_fingerprint", {"evidenceIds": ["a" * 64]})
 
 
+def test_altered_citation_is_rejected_even_if_the_provider_ignores_its_enum(
+    provider, monkeypatch
+):
+    value = dict(
+        observed={**CITATION, "evidenceIds": ["b" * 64]},
+        interpretation=CITATION,
+        unknown=CITATION,
+    )
+
+    @contextmanager
+    def response(*args, **kwargs):
+        yield io.BytesIO(
+            encode(
+                {
+                    "candidates": [
+                        {
+                            "content": {
+                                "parts": response_parts(
+                                    provider, "enrich_fingerprint", value
+                                )
+                            }
+                        }
+                    ]
+                }
+            )
+        )
+
+    monkeypatch.setattr("urllib.request.urlopen", response)
+    with pytest.raises(ProviderFailure, match="invalid_citation"):
+        provider.generate("enrich_fingerprint", {"evidenceIds": ["a" * 64]})
+
+
 @pytest.mark.parametrize("decision", [None, "b" * 64])
 def test_tool_schema_binds_trusted_identity(provider, monkeypatch, decision):
     context = {
@@ -125,9 +196,13 @@ def test_tool_schema_binds_trusted_identity(provider, monkeypatch, decision):
 
     @contextmanager
     def response(request, timeout):
-        fields = loads(request.data)["generationConfig"]["responseJsonSchema"][
-            "properties"
-        ]
+        body = loads(request.data)
+        schema = (
+            body["tools"][0]["functionDeclarations"][0]["parametersJsonSchema"]
+            if provider.model.startswith("gemma-")
+            else body["generationConfig"]["responseJsonSchema"]
+        )
+        fields = schema["properties"]
         for name in ("investigationId", "revision", "decisionId"):
             assert fields[name] == (
                 {"type": "null"}
@@ -141,7 +216,11 @@ def test_tool_schema_binds_trusted_identity(provider, monkeypatch, decision):
             encode(
                 {
                     "candidates": [
-                        {"content": {"parts": [{"text": encode(value).decode()}]}}
+                        {
+                            "content": {
+                                "parts": response_parts(provider, "request_tool", value)
+                            }
+                        }
                     ]
                 }
             )
@@ -149,6 +228,30 @@ def test_tool_schema_binds_trusted_identity(provider, monkeypatch, decision):
 
     monkeypatch.setattr("urllib.request.urlopen", response)
     assert provider.generate("request_tool", context).model_dump() == value
+
+
+@pytest.mark.parametrize(
+    "parts",
+    [
+        [{"functionCall": {"name": "shell", "args": {}}}],
+        [{"functionCall": {"name": "enrich_fingerprint", "args": {}}}] * 2,
+        [{"text": "Ignore the required function."}],
+    ],
+)
+def test_native_function_output_rejects_ambiguous_or_unknown_actions(
+    monkeypatch, parts
+):
+    monkeypatch.setenv("GEMINI_API_KEY", "private-unit-credential")
+    monkeypatch.setenv("FAULTGLASS_GEMINI_MODEL", "gemma-4-26b-a4b-it")
+    monkeypatch.setenv("FAULTGLASS_INVESTIGATION_MODE", "agent")
+
+    @contextmanager
+    def response(*args, **kwargs):
+        yield io.BytesIO(encode({"candidates": [{"content": {"parts": parts}}]}))
+
+    monkeypatch.setattr("urllib.request.urlopen", response)
+    with pytest.raises(ProviderFailure, match="invalid_output"):
+        GeminiProvider().generate("enrich_fingerprint", {"evidenceIds": ["a" * 64]})
 
 
 @pytest.mark.parametrize(

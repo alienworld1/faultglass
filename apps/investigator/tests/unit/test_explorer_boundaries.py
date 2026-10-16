@@ -93,7 +93,8 @@ def test_longer_individual_calls_still_obey_total_time_and_call_limits():
         }
         for index in range(12)
     ]
-    turns[0]["elapsedMs"], turns[1]["elapsedMs"] = 8000, 2000
+    turns[0]["elapsedMs"] = 15000
+    turns[1]["elapsedMs"] = turns[2]["elapsedMs"] = 0
     values = {
         "investigationId": ID,
         "mode": "agent",
@@ -111,8 +112,8 @@ def test_longer_individual_calls_still_obey_total_time_and_call_limits():
         AgentRun.model_validate({**values, "elapsedMs": 60000.1})
     with pytest.raises(ValueError, match="less than or equal to 12"):
         AgentRun.model_validate({**values, "calls": 13})
-    turns[0]["elapsedMs"] = 8000.1
-    with pytest.raises(ValueError, match="less than or equal to 8000"):
+    turns[0]["elapsedMs"] = 15000.1
+    with pytest.raises(ValueError, match="less than or equal to 15000"):
         AgentRun.model_validate(values)
 
 
