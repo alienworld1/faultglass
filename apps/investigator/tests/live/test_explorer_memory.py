@@ -30,7 +30,15 @@ def advance(worker, record):
     for _ in range(120):
         if record.snapshot.status in TERMINAL:
             return record
+        previous_calls = load_run(worker.store, record).calls
         record = worker.step(record.snapshot.id)
+        run = load_run(worker.store, record)
+        if run.calls > previous_calls:
+            print(f"Live Explorer: {run.calls} calls, {run.status}", flush=True)
+            if run.status == "degraded":
+                pytest.fail(f"Live Explorer gate unmet: {run.reasonCode}")
+            # Pace the opt-in proof outside the provider's strict execution deadline.
+            time.sleep(20)
     pytest.fail("The live investigation exceeded its bounded action count.")
 
 
@@ -107,8 +115,6 @@ def test_live_explorer_changes_a_fresh_related_action(tmp_path, monkeypatch):
     )
     a = advance(worker, a)
     assert_live(worker, a)
-    # Keep the two independent admissions outside the same provider rate window.
-    time.sleep(60)
     b, _ = worker.store.admit(
         Admission(caseFile=encode(RELATED).decode(), pairId="call-yield-c-rust"),
         str(uuid4()),
