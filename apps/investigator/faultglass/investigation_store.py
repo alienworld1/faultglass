@@ -10,6 +10,7 @@ from .context_lock import ContextLease
 from .context_models import ENDPOINTS, EvidenceReference, Node, evidence_id
 from .investigation_models import (
     TERMINAL,
+    Capabilities,
     Event,
     EventData,
     PhaseReceipt,
@@ -164,6 +165,23 @@ class InvestigationStore:
                     datetime.fromisoformat(created) + timedelta(seconds=900)
                 ).isoformat(),
             )
+            from .analysis_artifacts import AnalysisStore
+            from .explorer import initial_run, summary
+            from .worker_presence import worker_agent_readiness
+
+            worker_agent = worker_agent_readiness(self.repository.config)
+            run = initial_run(
+                job_id,
+                created,
+                None
+                if worker_agent["agentReason"] == "worker_unavailable"
+                else worker_agent,
+            )
+            agent_ref = AnalysisStore(self.root, job_id, "agent").document("run", run)
+            snapshot.agent = summary(run)
+            snapshot.capabilities = Capabilities(
+                reducing=True, classifying=True, exporting=True
+            )
             event = self.event(
                 snapshot, "investigation.created", "Waiting to investigate."
             )
@@ -172,6 +190,7 @@ class InvestigationStore:
                 admissionKey=key,
                 payloadSha256=payload,
                 inputRef=input_ref,
+                agentRef=agent_ref,
                 event=event,
                 receiptKey=digest(
                     {"investigation": job_id, "revision": 1, "handler": "runtime-v1"}
@@ -210,6 +229,7 @@ class InvestigationStore:
         outputs=(),
         phase=None,
         expected_reservation=None,
+        memory_updates=(),
     ):
         with ContextLease():
             self.repository._assert_ready()
@@ -266,7 +286,13 @@ class InvestigationStore:
                     changes["terminalReason"]["message"],
                 )
             if target != snapshot.status:
-                transition(snapshot.status, target, reducing=True)
+                transition(
+                    snapshot.status,
+                    target,
+                    reducing=True,
+                    downstream=snapshot.capabilities.classifying
+                    and snapshot.capabilities.exporting,
+                )
             if target == Status.CANCELLED and (
                 changes.get("reduction") or snapshot.reduction
             ):
@@ -380,10 +406,10 @@ class InvestigationStore:
                 )
             else:
                 record.phaseReceipt = None
-            self._publish(record, current, phase)
+            self._publish(record, current, phase, memory_updates=memory_updates)
             return self.load(job_id)
 
-    def _publish(self, record, current, phase=None):
+    def _publish(self, record, current, phase=None, *, memory_updates=()):
         from .investigation_budget import owned_bytes
 
         snapshot = record.snapshot
@@ -425,10 +451,20 @@ class InvestigationStore:
             "expected": current.snapshot.revision if current else 0,
             "props": props,
         }
-        for label in ("FaultCase", "Fingerprint", "EngineVersion", "Run", "Divergence"):
+        for label in (
+            "FaultCase",
+            "Fingerprint",
+            "EngineVersion",
+            "Run",
+            "Divergence",
+            "FaultFamily",
+            "RegressionTest",
+        ):
             params[label] = (
                 [n.properties for n in phase.nodes if n.label == label] if phase else []
             )
+        params["MemoryUpdates"] = list(memory_updates)
+        params["memory_ids"] = [entry["properties"]["id"] for entry in memory_updates]
         for kind in ENDPOINTS:
             params[kind] = (
                 [e.model_dump() for e in phase.edges if e.type == kind] if phase else []
@@ -472,6 +508,17 @@ class InvestigationStore:
             if uncertain and exc.status == 404:
                 raise ContextUnavailable() from None
             raise
+        if saved.receiptKey == record.receiptKey and digest(
+            saved.model_dump()
+        ) != digest(record.model_dump()):
+            raise IdentityConflict()
+        if saved.receiptKey == record.receiptKey and memory_updates:
+            for entry in memory_updates:
+                rows = self.repository._query(
+                    "edge-identities", {"ids": [entry["properties"]["id"]]}
+                )
+                if len(rows) != 1 or dict(rows[0][3]) != entry["properties"]:
+                    raise IdentityConflict()
         if saved.receiptKey != record.receiptKey:
             if (
                 uncertain

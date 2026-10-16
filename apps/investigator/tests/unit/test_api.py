@@ -17,7 +17,7 @@ def test_unavailable_docker_keeps_api_alive_and_exposes_safe_codes(monkeypatch):
     client = TestClient(api.app)
     health = client.get("/api/health")
     assert health.status_code == 200
-    assert health.json() == {
+    assert {k: v for k, v in health.json().items() if not k.startswith("agent")} == {
         "contextReady": False,
         "workerReady": False,
         "status": "ok",

@@ -9,6 +9,8 @@ from pydantic import (
     model_validator,
 )
 
+from .agent_models import AgentSummary
+from .analysis_models import Conclusion
 from .context_models import EvidenceReference, evidence_id, validate_timestamp
 from .evidence_summaries import PairedSummary
 from .models import Contract, EngineSpec, Hash
@@ -94,8 +96,8 @@ class Budget(RuntimeContract):
 
 class Capabilities(RuntimeContract):
     reducing: bool = True
-    classifying: Literal[False] = False
-    exporting: Literal[False] = False
+    classifying: bool = False
+    exporting: bool = False
 
 
 class Reason(Contract):
@@ -111,6 +113,10 @@ class Reason(Contract):
         "storage_failure",
         "cleanup_required",
         "registry_changed",
+        "evidence_complete",
+        "family_unresolved",
+        "export_failure",
+        "memory_failure",
     ]
     message: str = Field(min_length=1, max_length=256)
 
@@ -140,6 +146,10 @@ class Snapshot(RuntimeContract):
     evidence: list[EvidenceReference] = Field(default_factory=list, max_length=80)
     lastEventSequence: int = Field(default=1, ge=0, le=512)
     reduction: ReductionSummary | None = None
+    agent: AgentSummary | None = None
+    conclusion: Conclusion | None = None
+    exportsReady: bool = False
+    memoryState: Literal["pending", "recorded", "ineligible", "failed"] | None = None
     capabilities: Capabilities = Field(default_factory=Capabilities)
 
     _id = field_validator("id")(evidence_id)
@@ -178,6 +188,14 @@ EventType = Literal[
     "reduction.accepted",
     "reduction.rejected",
     "reduction.finished",
+    "agent.action",
+    "agent.degraded",
+    "family.matched",
+    "family.provisional",
+    "family.unresolved",
+    "export.ready",
+    "memory.updated",
+    "investigation.complete",
     "cancellation.requested",
     "investigation.not_reproduced",
     "investigation.unresolved",
@@ -262,6 +280,11 @@ class RuntimeRecord(Contract):
     previous: EvidenceReference | None = None
     event: Event
     workerId: str | None = None
+    agentRef: EvidenceReference | None = None
+    classificationRef: EvidenceReference | None = None
+    exportRef: EvidenceReference | None = None
+    memoryRef: EvidenceReference | None = None
+    influenceRef: EvidenceReference | None = None
     reductionRef: EvidenceReference | None = None
     reservation: Reservation | None = None
     triedOutputs: list[Hash] = Field(default_factory=list, max_length=4)
@@ -272,6 +295,29 @@ class RuntimeRecord(Contract):
     @model_validator(mode="after")
     def agrees(self):
         snapshot = self.snapshot
+        for ref, area in [
+            (self.agentRef, "agent"),
+            (self.classificationRef, "classification"),
+            (self.exportRef, "export"),
+            (self.memoryRef, "classification"),
+        ]:
+            if ref and ref.owner != snapshot.id + "/" + area:
+                raise ValueError("Saved analysis belongs to another investigation.")
+        if (
+            snapshot.status == Status.COMPLETE
+            and snapshot.capabilities.classifying
+            and not (
+                snapshot.conclusion
+                and snapshot.exportsReady
+                and snapshot.memoryState == "recorded"
+                and self.classificationRef
+                and self.exportRef
+                and self.memoryRef
+            )
+        ):
+            raise ValueError(
+                "Completion requires verified evidence, exports and investigation memory."
+            )
         evidence_id(self.admissionKey)
         if (self.reductionRef is None) != (snapshot.reduction is None):
             raise ValueError("Saved reduction control and evidence do not agree.")

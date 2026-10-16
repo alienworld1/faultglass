@@ -109,7 +109,14 @@ class ReductionHandler:
                 "reservation": reservation.model_dump() if reservation else None,
             },
         }
-        if terminal:
+        eligible = (
+            terminal
+            and checkpoint.summary.state == "finished"
+            and checkpoint.summary.source.stable
+            and not checkpoint.summary.verificationFailures
+            and record.snapshot.capabilities.classifying
+        )
+        if terminal and not eligible:
             cancelled = checkpoint.summary.stopReason == "cancelled"
             changes["terminalReason"] = {
                 "code": "cancelled" if cancelled else "analysis_unavailable",
@@ -121,7 +128,9 @@ class ReductionHandler:
             record.snapshot.id,
             kind,
             message,
-            status=(
+            status=Status.CLASSIFYING
+            if eligible
+            else (
                 Status.CANCELLED
                 if checkpoint.summary.stopReason == "cancelled"
                 else Status.UNRESOLVED

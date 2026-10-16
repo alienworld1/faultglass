@@ -395,3 +395,50 @@ def reduction(
                 store, record, int(cursor), caseId, int(setupCursor)
             ).model_dump()
         )
+
+
+@router.get("/{job_id}/conclusion")
+def conclusion(job_id: str, cursor: str = "0"):
+    from .conclusion_reads import conclusion_page
+
+    validate_id(job_id)
+    if not cursor.isascii() or not cursor.isdecimal() or len(cursor) > 3:
+        raise RuntimeErrorResponse(
+            "invalid_cursor", "Choose a valid evidence cursor.", 422
+        )
+    try:
+        with closing(GraphRepository()) as repository:
+            store = InvestigationStore(repository)
+            return bounded_response(
+                conclusion_page(store, store.load(job_id), int(cursor)).model_dump()
+            )
+    except EvidenceIntegrity:
+        raise RuntimeErrorResponse(
+            "integrity_failure", "Saved evidence could not be verified.", 409
+        ) from None
+
+
+@router.get("/{job_id}/export/{artifact}")
+def export_download(job_id: str, artifact: str):
+    from fastapi.responses import Response
+
+    from .conclusion_reads import download
+
+    validate_id(job_id)
+    try:
+        with closing(GraphRepository()) as repository:
+            store = InvestigationStore(repository)
+            ref, data = download(store, store.load(job_id), artifact)
+            return Response(
+                data,
+                media_type=ref.mediaType,
+                headers={
+                    "Content-Disposition": f'attachment; filename="{ref.path}"',
+                    "X-Content-Type-Options": "nosniff",
+                    "Cache-Control": "private, no-store",
+                },
+            )
+    except EvidenceIntegrity:
+        raise RuntimeErrorResponse(
+            "download_integrity", "This download could not be verified.", 409
+        ) from None

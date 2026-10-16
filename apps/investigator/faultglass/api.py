@@ -86,7 +86,12 @@ def health():
     issues = readiness()
     with closing(GraphRepository()) as repository:
         runtime = service_readiness(repository)
+        from .worker_presence import worker_agent_readiness
+
+        agent = worker_agent_readiness(repository.config)
+
     return {
+        **agent,
         **runtime,
         "status": "ok",
         "executionReady": any(pair.id not in issues for pair in PAIRS),

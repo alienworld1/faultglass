@@ -66,8 +66,8 @@ def test_real_query_fixture_lineage_rejections_final_case_and_pages(reduction_ru
     final = advance(worker, job, lambda r: r.snapshot.status in TERMINAL)
     page = reduction_page(worker.store, final)
     summary = page.summary
-    assert final.snapshot.status == Status.UNRESOLVED
-    assert final.snapshot.terminalReason.code == "analysis_unavailable"
+    assert final.snapshot.status == Status.COMPLETE
+    assert final.snapshot.terminalReason.code == "evidence_complete"
     assert (
         summary.source.sourceKind == "probe" and summary.source.sourceProbeSequence == 1
     )

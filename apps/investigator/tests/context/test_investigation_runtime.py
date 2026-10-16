@@ -74,10 +74,10 @@ def test_reproduced_worker_runs_distinct_experiments(runtime):
         }:
             break
     final = runtime.load(record.snapshot.id)
-    assert final.snapshot.status == Status.UNRESOLVED
-    assert final.snapshot.probeSequence == 1
-    assert final.snapshot.terminalReason.code == "analysis_unavailable"
-    assert len(final.triedOutputs) == 1
+    assert final.snapshot.status == Status.COMPLETE
+    assert final.snapshot.probeSequence == 2
+    assert final.snapshot.terminalReason.code == "evidence_complete"
+    assert len(final.triedOutputs) == 2
     assert (
         len(runtime.repository.get_investigation_context(record.snapshot.id).runs) == 2
     )

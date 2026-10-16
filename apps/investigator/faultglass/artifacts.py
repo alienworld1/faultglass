@@ -91,7 +91,7 @@ class ArtifactStore:
                     raise
                 with os.scandir(self.path) as entries:
                     if any(
-                        entry.name != "runtime"
+                        entry.name not in {"runtime", "agent"}
                         or not entry.is_dir(follow_symlinks=False)
                         for entry in entries
                     ):

@@ -18,8 +18,8 @@ packages = ["faultglass"]
 faultglass = ["engine-matrix.json", "engine-verification.json", "queries/*.cypher"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-markers = ["docker: requires the approved local engine images and Docker", "context: requires the persistent context service and approved local images"]
+testpaths = ["tests/unit", "tests/context", "tests/integration"]
+markers = ["live: requires configured Gemini and approved public inputs", "docker: requires the approved local engine images and Docker", "context: requires the persistent context service and approved local images"]
 
 [tool.ruff]
 target-version = "py312"

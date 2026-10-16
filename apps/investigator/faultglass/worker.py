@@ -11,12 +11,22 @@ from .artifacts import Lease
 from .context_artifacts import load_evidence, read_reference
 from .context_errors import ContextError, ContextUnavailable, EvidenceIntegrity
 from .execution import interrupt, run_case
+from .explorer import (
+    Explorer,
+    execution_attachment,
+    execution_authorization,
+    load_run,
+    planning_checkpoint,
+)
+from .explorer import summary as agent_summary
+from .finishing_service import FinishingHandler
 from .graph_repository import GraphRepository
 from .investigation_budget import execution_deadline, owned_bytes, verify_committed
 from .investigation_models import TERMINAL, Reservation, Status
 from .investigation_planning import (
     digest_bytes,
     fingerprint_phase,
+    historical_influence,
     plan_next,
     seed_phase,
     verify_selection,
@@ -39,6 +49,8 @@ class Worker:
         self.id = str(uuid4())
         self.deadlines = {}
         self.reduction = ReductionHandler(self)
+        self.explorer = Explorer(self)
+        self.finishing = FinishingHandler(self)
 
     def cleanup(self):
         known = {}
@@ -115,6 +127,11 @@ class Worker:
             ),
         )
         deadline = execution_deadline(record, limit)
+        if snapshot.status not in {Status.CLASSIFYING, Status.EXPORTING}:
+            deadline -= 10
+            agent = load_run(self.store, record)
+            if agent and agent.status in {"pending", "running"}:
+                deadline -= max(0, 60 - agent.elapsedMs / 1000)
         # Started work is reconciled before control intents or expired budgets are applied.
         if record.reservation and record.reservation.state == "started":
             try:
@@ -139,6 +156,10 @@ class Worker:
                 "cancelled",
                 "Investigation cancelled. Collected evidence is preserved.",
             )
+        if snapshot.status == Status.CLASSIFYING:
+            return self.finishing.classify(record, deadline)
+        if snapshot.status == Status.EXPORTING:
+            return self.finishing.export(record, deadline)
         if time.monotonic() >= deadline or snapshot.lastEventSequence >= 470:
             return self.stop(
                 record,
@@ -198,9 +219,16 @@ class Worker:
         )
 
     def plan(self, record, deadline):
+        run = load_run(self.store, record)
+        if run and run.status in {"pending", "running"}:
+            checkpoint = planning_checkpoint(self.explorer, record, run)
+            if checkpoint is not None:
+                return checkpoint
         if record.snapshot.probeSequence > 0:
             _identity, sequence = choose_source(self.store, record)
-            if sequence is not None or record.snapshot.budget.reservedProbes >= 4:
+            if (
+                sequence is not None and record.snapshot.probeSequence >= 2
+            ) or record.snapshot.budget.reservedProbes >= 4:
                 return self.reduction.enter(record, deadline)
             if self.reduction.limit(record, deadline, executions=3):
                 return self.reduction.enter(record, deadline)
@@ -225,6 +253,14 @@ class Worker:
                 phase=phase,
                 outputs=phase.artifacts,
             )
+        agent_request = None
+        if run and run.status in {"pending", "running"} and plan.candidates:
+            record, agent_request = execution_authorization(
+                self.explorer, record, run, plan, phase
+            )
+            if agent_request is None:
+                return record
+            snapshot = record.snapshot
         used = owned_bytes(self.store, record)
         if (
             deadline - time.monotonic() < 80
@@ -254,16 +290,38 @@ class Worker:
                 "chargedBytes": used,
             }
         )
+        influence_ref = (
+            historical_influence(self.repository, record, plan, phase)
+            if plan.sequence == 1
+            else record.influenceRef
+        )
+        agent_changes = {}
+        if agent_request:
+            agent_ref = execution_attachment(
+                self.store,
+                record,
+                run,
+                agent_request,
+                plan,
+                reservation,
+                phase.artifacts,
+            )
+            agent_changes = {"agentRef": agent_ref.model_dump()}
         return self.store.commit(
             job_id,
             "probe.selected",
             plan.candidates[0].reason,
             status=Status.PROBING,
             update={
+                "agent": agent_summary(run).model_dump() if run else snapshot.agent,
                 "probeSequence": plan.sequence,
                 "budget": budget.model_dump(),
                 "record": {
                     "reservation": reservation.model_dump(),
+                    **agent_changes,
+                    "influenceRef": influence_ref.model_dump()
+                    if influence_ref
+                    else None,
                     "triedOutputs": [
                         *record.triedOutputs,
                         plan.candidates[0].output_case_id,

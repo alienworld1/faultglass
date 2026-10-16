@@ -19,6 +19,252 @@
       "title": "Admission",
       "type": "object"
     },
+    "AgentInterpretation": {
+      "additionalProperties": false,
+      "properties": {
+        "family": { "$ref": "#/$defs/FamilyExplanation" },
+        "narrative": { "$ref": "#/$defs/InvestigationNarrative" }
+      },
+      "required": ["family", "narrative"],
+      "title": "AgentInterpretation",
+      "type": "object"
+    },
+    "AgentRun": {
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "default": 0,
+          "maximum": 12,
+          "minimum": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "createdAt": { "title": "Createdat", "type": "string" },
+        "elapsedMs": {
+          "default": 0,
+          "maximum": 60000,
+          "minimum": 0,
+          "title": "Elapsedms",
+          "type": "number"
+        },
+        "inputArtifactHashes": {
+          "items": { "pattern": "^[a-f0-9]{64}$", "type": "string" },
+          "maxItems": 80,
+          "title": "Inputartifacthashes",
+          "type": "array"
+        },
+        "investigationId": { "title": "Investigationid", "type": "string" },
+        "mode": {
+          "enum": ["agent", "deterministic_diagnostic"],
+          "title": "Mode",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [{ "maxLength": 160, "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Model"
+        },
+        "outputRefs": {
+          "items": { "$ref": "#/$defs/EvidenceReference" },
+          "maxItems": 4,
+          "title": "Outputrefs",
+          "type": "array"
+        },
+        "promptVersion": {
+          "const": "explorer-v1",
+          "default": "explorer-v1",
+          "title": "Promptversion",
+          "type": "string"
+        },
+        "provider": {
+          "anyOf": [
+            { "const": "gemini", "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "reasonCode": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Reasoncode"
+        },
+        "results": {
+          "items": { "$ref": "#/$defs/AgentToolResult" },
+          "maxItems": 12,
+          "title": "Results",
+          "type": "array"
+        },
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "stage": {
+          "default": "context",
+          "enum": [
+            "context",
+            "rank",
+            "execute",
+            "evidence",
+            "continue",
+            "classification",
+            "interpretation",
+            "done"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "running",
+            "completed",
+            "degraded",
+            "data_excluded"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "turns": {
+          "items": { "$ref": "#/$defs/AgentTurn" },
+          "maxItems": 12,
+          "title": "Turns",
+          "type": "array"
+        },
+        "updatedAt": { "title": "Updatedat", "type": "string" }
+      },
+      "required": [
+        "investigationId",
+        "mode",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ],
+      "title": "AgentRun",
+      "type": "object"
+    },
+    "AgentSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "maximum": 12,
+          "minimum": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "mode": {
+          "enum": ["agent", "deterministic_diagnostic"],
+          "title": "Mode",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "title": "Model"
+        },
+        "reasonCode": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "title": "Reasoncode"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "running",
+            "completed",
+            "degraded",
+            "data_excluded"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": ["mode", "status", "reasonCode", "model", "calls"],
+      "title": "AgentSummary",
+      "type": "object"
+    },
+    "AgentToolResult": {
+      "additionalProperties": false,
+      "properties": {
+        "references": {
+          "items": { "$ref": "#/$defs/EvidenceReference" },
+          "maxItems": 12,
+          "title": "References",
+          "type": "array"
+        },
+        "requestId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Requestid",
+          "type": "string"
+        },
+        "resultHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Resulthash",
+          "type": "string"
+        },
+        "tool": {
+          "enum": [
+            "read_investigation_context",
+            "rank_supported_probes",
+            "execute_ranked_probe",
+            "read_probe_evidence",
+            "continue_verified_analysis",
+            "read_classification_evidence"
+          ],
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": ["requestId", "tool", "references", "resultHash"],
+      "title": "AgentToolResult",
+      "type": "object"
+    },
+    "AgentTurn": {
+      "additionalProperties": false,
+      "properties": {
+        "elapsedMs": {
+          "default": 0,
+          "maximum": 5000,
+          "minimum": 0,
+          "title": "Elapsedms",
+          "type": "number"
+        },
+        "failure": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Failure"
+        },
+        "id": { "pattern": "^[a-f0-9]{64}$", "title": "Id", "type": "string" },
+        "inputHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Inputhash",
+          "type": "string"
+        },
+        "operation": {
+          "enum": [
+            "request_tool",
+            "explain_family",
+            "narrate_investigation",
+            "enrich_fingerprint",
+            "suggest_reduction"
+          ],
+          "title": "Operation",
+          "type": "string"
+        },
+        "reservedAt": { "title": "Reservedat", "type": "string" },
+        "responseRef": {
+          "anyOf": [
+            { "$ref": "#/$defs/EvidenceReference" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "revision": { "minimum": 1, "title": "Revision", "type": "integer" }
+      },
+      "required": ["id", "revision", "operation", "inputHash", "reservedAt"],
+      "title": "AgentTurn",
+      "type": "object"
+    },
     "ArtifactRef": {
       "additionalProperties": false,
       "properties": {
@@ -125,13 +371,11 @@
       "additionalProperties": false,
       "properties": {
         "classifying": {
-          "const": false,
           "default": false,
           "title": "Classifying",
           "type": "boolean"
         },
         "exporting": {
-          "const": false,
           "default": false,
           "title": "Exporting",
           "type": "boolean"
@@ -194,6 +438,206 @@
       },
       "required": ["name", "status", "value"],
       "title": "CheckObservation",
+      "type": "object"
+    },
+    "CitedText": {
+      "additionalProperties": false,
+      "properties": {
+        "evidenceIds": {
+          "items": { "type": "string" },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Evidenceids",
+          "type": "array"
+        },
+        "text": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": ["text", "evidenceIds"],
+      "title": "CitedText",
+      "type": "object"
+    },
+    "ClassificationSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "contradictions": {
+          "items": { "maxLength": 1200, "minLength": 1, "type": "string" },
+          "maxItems": 12,
+          "title": "Contradictions",
+          "type": "array"
+        },
+        "features": {
+          "items": { "type": "string" },
+          "maxItems": 64,
+          "title": "Features",
+          "type": "array"
+        },
+        "probes": {
+          "items": { "$ref": "#/$defs/ProbeEvidence" },
+          "maxItems": 4,
+          "title": "Probes",
+          "type": "array"
+        },
+        "referenceSignature": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Referencesignature",
+          "type": "string"
+        },
+        "retainedCaseId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Retainedcaseid",
+          "type": "string"
+        },
+        "retainedIsRepeatedSource": {
+          "title": "Retainedisrepeatedsource",
+          "type": "boolean"
+        },
+        "retainedVerificationRef": { "$ref": "#/$defs/EvidenceReference" },
+        "scope": { "$ref": "#/$defs/VersionScope" },
+        "sourceRef": { "$ref": "#/$defs/EvidenceReference" },
+        "stabilityRef": { "$ref": "#/$defs/EvidenceReference" }
+      },
+      "required": [
+        "features",
+        "scope",
+        "referenceSignature",
+        "retainedCaseId",
+        "retainedIsRepeatedSource",
+        "sourceRef",
+        "stabilityRef",
+        "retainedVerificationRef",
+        "probes",
+        "contradictions"
+      ],
+      "title": "ClassificationSummary",
+      "type": "object"
+    },
+    "Conclusion": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": { "title": "Createdat", "type": "string" },
+        "evidenceRef": { "$ref": "#/$defs/EvidenceReference" },
+        "familyId": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Familyid"
+        },
+        "familyName": {
+          "anyOf": [{ "maxLength": 160, "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Familyname"
+        },
+        "familyStatus": {
+          "anyOf": [
+            { "enum": ["provisional", "confirmed"], "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Familystatus"
+        },
+        "interpretationRef": {
+          "anyOf": [
+            { "$ref": "#/$defs/EvidenceReference" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "observed": {
+          "items": { "maxLength": 1200, "minLength": 1, "type": "string" },
+          "maxItems": 12,
+          "title": "Observed",
+          "type": "array"
+        },
+        "reasonCode": {
+          "maxLength": 80,
+          "title": "Reasoncode",
+          "type": "string"
+        },
+        "state": {
+          "enum": ["matched", "provisional", "unresolved"],
+          "title": "State",
+          "type": "string"
+        },
+        "unknowns": {
+          "items": { "maxLength": 1200, "minLength": 1, "type": "string" },
+          "maxItems": 12,
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "state",
+        "evidenceRef",
+        "observed",
+        "unknowns",
+        "reasonCode",
+        "createdAt"
+      ],
+      "title": "Conclusion",
+      "type": "object"
+    },
+    "ConclusionPage": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "anyOf": [{ "$ref": "#/$defs/AgentRun" }, { "type": "null" }]
+        },
+        "candidates": {
+          "items": { "$ref": "#/$defs/FamilyCandidate" },
+          "maxItems": 10,
+          "title": "Candidates",
+          "type": "array"
+        },
+        "classification": {
+          "anyOf": [
+            { "$ref": "#/$defs/ClassificationSummary" },
+            { "type": "null" }
+          ]
+        },
+        "conclusion": {
+          "anyOf": [{ "$ref": "#/$defs/Conclusion" }, { "type": "null" }]
+        },
+        "exports": {
+          "anyOf": [{ "$ref": "#/$defs/ExportManifest" }, { "type": "null" }]
+        },
+        "influence": {
+          "anyOf": [
+            { "$ref": "#/$defs/HistoricalInfluence" },
+            { "type": "null" }
+          ]
+        },
+        "interpretation": {
+          "anyOf": [
+            { "$ref": "#/$defs/AgentInterpretation" },
+            { "type": "null" }
+          ]
+        },
+        "memory": {
+          "anyOf": [{ "$ref": "#/$defs/MemoryDelta" }, { "type": "null" }]
+        },
+        "nextCursor": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "title": "Nextcursor"
+        },
+        "revision": { "title": "Revision", "type": "integer" }
+      },
+      "required": [
+        "revision",
+        "conclusion",
+        "classification",
+        "exports",
+        "memory",
+        "influence",
+        "candidates",
+        "nextCursor",
+        "agent",
+        "interpretation"
+      ],
+      "title": "ConclusionPage",
       "type": "object"
     },
     "Decision": {
@@ -355,6 +799,39 @@
       "title": "Divergence",
       "type": "object"
     },
+    "DownloadReference": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": { "minimum": 0, "title": "Bytes", "type": "integer" },
+        "id": { "minLength": 1, "title": "Id", "type": "string" },
+        "key": {
+          "enum": ["case", "regression-test", "report"],
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": { "minLength": 1, "title": "Kind", "type": "string" },
+        "mediaType": { "minLength": 1, "title": "Mediatype", "type": "string" },
+        "owner": { "title": "Owner", "type": "string" },
+        "path": { "minLength": 1, "title": "Path", "type": "string" },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "path",
+        "mediaType",
+        "sha256",
+        "bytes",
+        "owner",
+        "key"
+      ],
+      "title": "DownloadReference",
+      "type": "object"
+    },
     "EngineError": {
       "additionalProperties": false,
       "properties": {
@@ -506,6 +983,14 @@
             "reduction.accepted",
             "reduction.rejected",
             "reduction.finished",
+            "agent.action",
+            "agent.degraded",
+            "family.matched",
+            "family.provisional",
+            "family.unresolved",
+            "export.ready",
+            "memory.updated",
+            "investigation.complete",
             "cancellation.requested",
             "investigation.not_reproduced",
             "investigation.unresolved",
@@ -739,6 +1224,54 @@
       "title": "ExpectedResult",
       "type": "object"
     },
+    "ExportManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "classificationEvidenceRef": { "$ref": "#/$defs/EvidenceReference" },
+        "createdAt": { "title": "Createdat", "type": "string" },
+        "expectationBasis": {
+          "enum": [
+            "explicit_result",
+            "explicit_error",
+            "baseline_observation",
+            "unasserted"
+          ],
+          "title": "Expectationbasis",
+          "type": "string"
+        },
+        "files": {
+          "items": { "$ref": "#/$defs/DownloadReference" },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Files",
+          "type": "array"
+        },
+        "investigationId": { "title": "Investigationid", "type": "string" },
+        "regressionTestId": { "title": "Regressiontestid", "type": "string" },
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "sourceCaseId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sourcecaseid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "investigationId",
+        "regressionTestId",
+        "sourceCaseId",
+        "classificationEvidenceRef",
+        "files",
+        "expectationBasis",
+        "createdAt"
+      ],
+      "title": "ExportManifest",
+      "type": "object"
+    },
     "Failure": {
       "additionalProperties": false,
       "properties": {
@@ -756,6 +1289,114 @@
       },
       "required": ["code", "stage", "message"],
       "title": "Failure",
+      "type": "object"
+    },
+    "FamilyCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "behavior": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Behavior",
+          "type": "number"
+        },
+        "compatible": { "title": "Compatible", "type": "boolean" },
+        "contradictoryProbeIds": {
+          "items": { "type": "string" },
+          "maxItems": 4,
+          "title": "Contradictoryprobeids",
+          "type": "array"
+        },
+        "eligible": { "title": "Eligible", "type": "boolean" },
+        "familyEvidenceRef": { "$ref": "#/$defs/EvidenceReference" },
+        "familyId": { "maxLength": 160, "title": "Familyid", "type": "string" },
+        "familyStatus": {
+          "enum": ["provisional", "confirmed"],
+          "title": "Familystatus",
+          "type": "string"
+        },
+        "feature": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Feature",
+          "type": "number"
+        },
+        "pathRefs": {
+          "items": { "type": "string" },
+          "maxItems": 64,
+          "title": "Pathrefs",
+          "type": "array"
+        },
+        "reasons": {
+          "items": { "type": "string" },
+          "maxItems": 12,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "reducedShape": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Reducedshape",
+          "type": "number"
+        },
+        "score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "sourceInvestigationId": {
+          "title": "Sourceinvestigationid",
+          "type": "string"
+        },
+        "supportingProbeIds": {
+          "items": { "type": "string" },
+          "maxItems": 4,
+          "title": "Supportingprobeids",
+          "type": "array"
+        },
+        "version": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Version",
+          "type": "number"
+        }
+      },
+      "required": [
+        "familyId",
+        "familyStatus",
+        "familyEvidenceRef",
+        "sourceInvestigationId",
+        "pathRefs",
+        "feature",
+        "behavior",
+        "reducedShape",
+        "version",
+        "score",
+        "compatible",
+        "eligible",
+        "supportingProbeIds",
+        "contradictoryProbeIds",
+        "reasons"
+      ],
+      "title": "FamilyCandidate",
+      "type": "object"
+    },
+    "FamilyExplanation": {
+      "additionalProperties": false,
+      "properties": {
+        "interpretation": { "$ref": "#/$defs/CitedText" },
+        "observed": { "$ref": "#/$defs/CitedText" },
+        "proposedName": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Proposedname",
+          "type": "string"
+        },
+        "unknown": { "$ref": "#/$defs/CitedText" }
+      },
+      "required": ["proposedName", "observed", "interpretation", "unknown"],
+      "title": "FamilyExplanation",
       "type": "object"
     },
     "FaultCase": {
@@ -811,6 +1452,79 @@
       "title": "FaultCase",
       "type": "object"
     },
+    "HistoricalInfluence": {
+      "additionalProperties": false,
+      "properties": {
+        "changed": { "title": "Changed", "type": "boolean" },
+        "decisionRef": { "$ref": "#/$defs/EvidenceReference" },
+        "pathRefs": {
+          "items": { "type": "string" },
+          "maxItems": 256,
+          "title": "Pathrefs",
+          "type": "array"
+        },
+        "priorInvestigationIds": {
+          "items": { "type": "string" },
+          "maxItems": 100,
+          "title": "Priorinvestigationids",
+          "type": "array"
+        },
+        "selectedProbeId": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "title": "Selectedprobeid"
+        },
+        "withHistory": {
+          "items": { "$ref": "#/$defs/InfluenceRank" },
+          "maxItems": 2,
+          "title": "Withhistory",
+          "type": "array"
+        },
+        "withoutHistory": {
+          "items": { "$ref": "#/$defs/InfluenceRank" },
+          "maxItems": 2,
+          "title": "Withouthistory",
+          "type": "array"
+        }
+      },
+      "required": [
+        "decisionRef",
+        "selectedProbeId",
+        "priorInvestigationIds",
+        "pathRefs",
+        "withoutHistory",
+        "withHistory",
+        "changed"
+      ],
+      "title": "HistoricalInfluence",
+      "type": "object"
+    },
+    "InfluenceRank": {
+      "additionalProperties": false,
+      "properties": {
+        "probeId": { "title": "Probeid", "type": "string" },
+        "rank": {
+          "maximum": 2,
+          "minimum": 1,
+          "title": "Rank",
+          "type": "integer"
+        },
+        "score": { "title": "Score", "type": "number" }
+      },
+      "required": ["probeId", "rank", "score"],
+      "title": "InfluenceRank",
+      "type": "object"
+    },
+    "InvestigationNarrative": {
+      "additionalProperties": false,
+      "properties": {
+        "interpretation": { "$ref": "#/$defs/CitedText" },
+        "observed": { "$ref": "#/$defs/CitedText" },
+        "unknown": { "$ref": "#/$defs/CitedText" }
+      },
+      "required": ["observed", "interpretation", "unknown"],
+      "title": "InvestigationNarrative",
+      "type": "object"
+    },
     "JsonValue": {
       "anyOf": [
         { "type": "null" },
@@ -823,6 +1537,121 @@
           "type": "object"
         }
       ]
+    },
+    "MemoryDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "classificationRef": { "$ref": "#/$defs/EvidenceReference" },
+        "commitKey": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Commitkey",
+          "type": "string"
+        },
+        "costPrecision": {
+          "const": "milliseconds-6dp",
+          "default": "milliseconds-6dp",
+          "title": "Costprecision",
+          "type": "string"
+        },
+        "entries": {
+          "items": { "$ref": "#/$defs/MemoryEntry" },
+          "maxItems": 4,
+          "title": "Entries",
+          "type": "array"
+        },
+        "exportManifestRef": { "$ref": "#/$defs/EvidenceReference" },
+        "investigationId": { "title": "Investigationid", "type": "string" },
+        "reason": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Reason"
+        },
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "scope": { "$ref": "#/$defs/VersionScope" },
+        "state": {
+          "enum": ["recorded", "ineligible"],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "investigationId",
+        "commitKey",
+        "classificationRef",
+        "exportManifestRef",
+        "scope",
+        "entries",
+        "state"
+      ],
+      "title": "MemoryDelta",
+      "type": "object"
+    },
+    "MemoryEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "after": { "$ref": "#/$defs/MemoryStatistics" },
+        "before": { "$ref": "#/$defs/MemoryStatistics" },
+        "costMs": { "minimum": 0, "title": "Costms", "type": "number" },
+        "edgeId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Edgeid",
+          "type": "string"
+        },
+        "evidenceRefs": {
+          "items": { "$ref": "#/$defs/EvidenceReference" },
+          "maxItems": 4,
+          "title": "Evidencerefs",
+          "type": "array"
+        },
+        "familyId": { "title": "Familyid", "type": "string" },
+        "probeId": { "title": "Probeid", "type": "string" },
+        "reason": {
+          "enum": ["repeated_source", "semantic_contrast", "observed_only"],
+          "title": "Reason",
+          "type": "string"
+        },
+        "selectionId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Selectionid",
+          "type": "string"
+        },
+        "successIncrement": {
+          "enum": [0, 1],
+          "title": "Successincrement",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edgeId",
+        "probeId",
+        "familyId",
+        "selectionId",
+        "evidenceRefs",
+        "successIncrement",
+        "reason",
+        "costMs",
+        "before",
+        "after"
+      ],
+      "title": "MemoryEntry",
+      "type": "object"
+    },
+    "MemoryStatistics": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": { "minimum": 0, "title": "Attempts", "type": "integer" },
+        "avgCostMs": { "minimum": 0, "title": "Avgcostms", "type": "number" },
+        "lastSeenAt": { "title": "Lastseenat", "type": "string" },
+        "successes": { "minimum": 0, "title": "Successes", "type": "integer" }
+      },
+      "required": ["attempts", "successes", "avgCostMs", "lastSeenAt"],
+      "title": "MemoryStatistics",
+      "type": "object"
     },
     "Metadata": {
       "additionalProperties": false,
@@ -971,6 +1800,99 @@
       },
       "required": ["probe_id", "applicable", "reason_code", "input_case_id"],
       "title": "ProbeEligibility",
+      "type": "object"
+    },
+    "ProbeEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "contribution": {
+          "anyOf": [
+            {
+              "enum": ["repeated_source", "semantic_contrast"],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Contribution"
+        },
+        "definitionSha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Definitionsha256",
+          "type": "string"
+        },
+        "durationMs": { "minimum": 0, "title": "Durationms", "type": "number" },
+        "inputCaseId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Inputcaseid",
+          "type": "string"
+        },
+        "observedAt": { "title": "Observedat", "type": "string" },
+        "outputCaseId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Outputcaseid",
+          "type": "string"
+        },
+        "pairedStatuses": {
+          "additionalProperties": {
+            "enum": ["result", "error", "timeout", "crash"],
+            "type": "string"
+          },
+          "propertyNames": { "enum": ["baseline", "target"] },
+          "title": "Pairedstatuses",
+          "type": "object"
+        },
+        "planRef": { "$ref": "#/$defs/EvidenceReference" },
+        "probeId": { "maxLength": 160, "title": "Probeid", "type": "string" },
+        "relationship": {
+          "enum": ["preserved", "eliminated", "changed"],
+          "title": "Relationship",
+          "type": "string"
+        },
+        "reportRef": { "$ref": "#/$defs/EvidenceReference" },
+        "resultRef": { "$ref": "#/$defs/EvidenceReference" },
+        "selectionId": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Selectionid",
+          "type": "string"
+        },
+        "sequence": {
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "signature": {
+          "anyOf": [
+            { "pattern": "^[a-f0-9]{64}$", "type": "string" },
+            { "type": "null" }
+          ],
+          "title": "Signature"
+        },
+        "templateVersion": {
+          "maxLength": 160,
+          "title": "Templateversion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "selectionId",
+        "sequence",
+        "probeId",
+        "templateVersion",
+        "definitionSha256",
+        "inputCaseId",
+        "outputCaseId",
+        "relationship",
+        "signature",
+        "pairedStatuses",
+        "durationMs",
+        "observedAt",
+        "planRef",
+        "resultRef",
+        "reportRef"
+      ],
+      "title": "ProbeEvidence",
       "type": "object"
     },
     "RankedCandidate": {
@@ -1129,7 +2051,11 @@
             "execution_failure",
             "storage_failure",
             "cleanup_required",
-            "registry_changed"
+            "registry_changed",
+            "evidence_complete",
+            "family_unresolved",
+            "export_failure",
+            "memory_failure"
           ],
           "title": "Code",
           "type": "string"
@@ -1472,6 +2398,21 @@
       "title": "ReductionSource",
       "type": "object"
     },
+    "ReductionSuggestion": {
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "title": "Query",
+          "type": "string"
+        },
+        "reason": { "$ref": "#/$defs/CitedText" }
+      },
+      "required": ["query", "reason"],
+      "title": "ReductionSuggestion",
+      "type": "object"
+    },
     "ReductionSummary": {
       "additionalProperties": false,
       "properties": {
@@ -1794,6 +2735,10 @@
     "Snapshot": {
       "additionalProperties": false,
       "properties": {
+        "agent": {
+          "anyOf": [{ "$ref": "#/$defs/AgentSummary" }, { "type": "null" }],
+          "default": null
+        },
         "budget": { "$ref": "#/$defs/Budget" },
         "cancelRequestedAt": {
           "anyOf": [{ "type": "string" }, { "type": "null" }],
@@ -1801,6 +2746,10 @@
           "title": "Cancelrequestedat"
         },
         "capabilities": { "$ref": "#/$defs/Capabilities" },
+        "conclusion": {
+          "anyOf": [{ "$ref": "#/$defs/Conclusion" }, { "type": "null" }],
+          "default": null
+        },
         "createdAt": { "title": "Createdat", "type": "string" },
         "deadlineAt": { "title": "Deadlineat", "type": "string" },
         "engines": {
@@ -1815,6 +2764,11 @@
           "maxItems": 80,
           "title": "Evidence",
           "type": "array"
+        },
+        "exportsReady": {
+          "default": false,
+          "title": "Exportsready",
+          "type": "boolean"
         },
         "fingerprintId": {
           "anyOf": [
@@ -1836,6 +2790,17 @@
           "minimum": 0,
           "title": "Lasteventsequence",
           "type": "integer"
+        },
+        "memoryState": {
+          "anyOf": [
+            {
+              "enum": ["pending", "recorded", "ineligible", "failed"],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Memorystate"
         },
         "pairId": { "title": "Pairid", "type": "string" },
         "phase": { "$ref": "#/$defs/Status", "default": "QUEUED" },
@@ -1922,6 +2887,10 @@
         "evidence",
         "lastEventSequence",
         "reduction",
+        "agent",
+        "conclusion",
+        "exportsReady",
+        "memoryState",
         "capabilities"
       ],
       "title": "Snapshot",
@@ -2021,6 +2990,7 @@
   "properties": {
     "admission": { "$ref": "#/$defs/Admission" },
     "case": { "$ref": "#/$defs/FaultCase" },
+    "conclusion": { "$ref": "#/$defs/ConclusionPage" },
     "decision": { "$ref": "#/$defs/Decision" },
     "engine": { "$ref": "#/$defs/EngineSpec" },
     "event": { "$ref": "#/$defs/Event" },
@@ -2028,6 +2998,7 @@
     "investigation": { "$ref": "#/$defs/Snapshot" },
     "pair": { "$ref": "#/$defs/EnginePair" },
     "reduction": { "$ref": "#/$defs/ReductionPage" },
+    "reductionSuggestion": { "$ref": "#/$defs/ReductionSuggestion" },
     "report": { "$ref": "#/$defs/RunReport" }
   },
   "required": [
@@ -2040,7 +3011,9 @@
     "event",
     "evidence",
     "decision",
-    "reduction"
+    "reduction",
+    "conclusion",
+    "reductionSuggestion"
   ],
   "title": "EvidenceContracts",
   "type": "object"

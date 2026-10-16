@@ -78,6 +78,9 @@ class EvidenceReference(ArtifactRef):
             self.owner.split("/")[0] + "/planning",
             self.owner.split("/")[0] + "/runtime",
             self.owner.split("/")[0] + "/reduction",
+            self.owner.split("/")[0] + "/classification",
+            self.owner.split("/")[0] + "/export",
+            self.owner.split("/")[0] + "/agent",
             *[
                 self.owner.split("/")[0] + f"/planning/{sequence}"
                 for sequence in range(1, 5)
@@ -174,7 +177,15 @@ class Node(Contract):
             if key.endswith("artifact_ref"):
                 from .jsonio import loads
 
-                EvidenceReference.model_validate(loads(value))
+                if self.label == "RegressionTest" and key in {
+                    "case_artifact_ref",
+                    "pytest_artifact_ref",
+                }:
+                    from .analysis_models import DownloadReference
+
+                    DownloadReference.model_validate(loads(value))
+                else:
+                    EvidenceReference.model_validate(loads(value))
         if not properties.get("id") or not properties.get("created_at"):
             raise ValueError("Context nodes require identity and creation time.")
         validate_timestamp(properties["created_at"])

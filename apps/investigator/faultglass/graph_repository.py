@@ -505,6 +505,15 @@ class GraphRepository:
                         "scope": stats["version_scope"],
                     },
                 )
+                contribution = loads(
+                    read_reference(
+                        self.config.artifact_root, read_ref(stats["source_id"])
+                    )
+                )
+                if "commitKey" in contribution:
+                    sources = self._memory_sources(
+                        stats, probe["id"], family["id"], exclude_id
+                    )
                 supporting = []
                 for episode_id, source_id, weight, edge_id in sources:
                     if (
@@ -551,6 +560,27 @@ class GraphRepository:
                 raise ContextError("Related evidence could not be verified.") from None
         return FingerprintHistory(fingerprint_id=identity, candidates=candidates)
 
+    def _memory_sources(self, stats, probe_id, family_id, exclude_id):
+        ids = memory_contributors(
+            self,
+            read_ref(stats["source_id"]),
+            probe_id,
+            family_id,
+            stats["version_scope"],
+        )
+        ids = [identity for identity in ids if identity != exclude_id]
+        if len(ids) > 5:
+            raise ContextError(
+                "Related evidence exceeds the supported provenance limit."
+            )
+        rows = self._query(
+            "memory-provenance",
+            {"ids": ids, "family_id": family_id, "scope": stats["version_scope"]},
+        )
+        if {row[0] for row in rows} != set(ids):
+            raise EvidenceIntegrity()
+        return rows
+
     def _history_edges(self, fingerprint, family, probe, stats, sources):
         edges = [
             Edge(
@@ -593,3 +623,38 @@ def read_ref(value):
     from .context_models import EvidenceReference
 
     return EvidenceReference.model_validate(loads(value))
+
+
+def memory_contributors(repository, reference, probe_id, family_id, scope, seen=None):
+    from .analysis_models import MemoryDelta
+
+    seen = set() if seen is None else seen
+    if reference.sha256 in seen or len(seen) >= 100:
+        raise EvidenceIntegrity()
+    seen.add(reference.sha256)
+    delta = MemoryDelta.model_validate(
+        loads(read_reference(repository.config.artifact_root, reference))
+    )
+    if delta.state != "recorded" or encode(delta.scope.model_dump()).decode() != scope:
+        raise EvidenceIntegrity()
+    entries = [
+        e for e in delta.entries if e.probeId == probe_id and e.familyId == family_id
+    ]
+    if len(entries) != 1:
+        raise EvidenceIntegrity()
+    entry = entries[0]
+    for ref in [delta.classificationRef, delta.exportManifestRef, *entry.evidenceRefs]:
+        read_reference(repository.config.artifact_root, ref)
+    ids = [delta.investigationId]
+    prior = [
+        ref
+        for ref in entry.evidenceRefs
+        if ref.owner.endswith("/classification") and ref.path.startswith("memory-")
+    ]
+    if len(prior) > 1:
+        raise EvidenceIntegrity()
+    if prior:
+        ids.extend(
+            memory_contributors(repository, prior[0], probe_id, family_id, scope, seen)
+        )
+    return list(dict.fromkeys(ids))

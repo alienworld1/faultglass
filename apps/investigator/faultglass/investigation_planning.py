@@ -238,3 +238,49 @@ def fingerprint_phase(store, record):
         edges=edges,
         artifacts=refs,
     )
+
+
+def historical_influence(repository, record, plan, phase):
+    from .analysis_models import HistoricalInfluence, InfluenceRank
+    from .jsonio import loads
+
+    snapshot = SourceSnapshot.model_validate(
+        loads(read_reference(repository.config.artifact_root, plan.source_snapshot_ref))
+    )
+    case = load_evidence(repository.config.artifact_root, record.snapshot.id)[0]
+    by_probe = {c.probe_id: c.transformed_case_ref for c in plan.candidates}
+    counterfactual, _ = rank_candidates(
+        case,
+        snapshot.model_copy(update={"history": []}),
+        lambda definition, _output: by_probe[definition.id],
+        tried_outputs=record.triedOutputs,
+    )
+    ids = sorted(
+        {
+            e.investigation.properties["id"]
+            for c in snapshot.history
+            for e in c.supporting_episodes
+        }
+    )
+    result = HistoricalInfluence(
+        decisionRef=next(ref for ref in phase.artifacts if ref.path == "plan.json"),
+        selectedProbeId=plan.selected_probe_id,
+        priorInvestigationIds=ids,
+        pathRefs=sorted(
+            {e.properties["id"] for c in snapshot.history for e in c.path_edges}
+        ),
+        withoutHistory=[
+            InfluenceRank(probeId=c.probe_id, rank=c.rank, score=c.utility)
+            for c in counterfactual
+        ],
+        withHistory=[
+            InfluenceRank(probeId=c.probe_id, rank=c.rank, score=c.utility)
+            for c in plan.candidates
+        ],
+        changed=[c.probe_id for c in counterfactual]
+        != [c.probe_id for c in plan.candidates],
+    )
+    storage = PlanningStore(
+        repository.config.artifact_root, record.snapshot.id, plan.sequence
+    )
+    return storage.put("influence.json", encode(result.model_dump()))

@@ -108,7 +108,10 @@ worker.step(os.environ['RECOVERY_JOB'])
                 Status.PLANNING if purpose == "probe" else Status.REDUCING
             )
             assert manifest.read_bytes() == before
-            assert final.snapshot.budget.reservedProbes == 1
+            assert (
+                final.snapshot.budget.reservedProbes
+                == reserved.snapshot.budget.reservedProbes
+            )
         else:
             assert final.snapshot.status == (
                 Status.FAILED if purpose == "probe" else Status.UNRESOLVED

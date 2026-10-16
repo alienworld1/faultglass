@@ -3,6 +3,8 @@ from pathlib import Path
 
 from pydantic import create_model
 
+from .agent_models import ReductionSuggestion
+from .analysis_models import ConclusionPage
 from .investigation_models import Admission, Event, EvidencePage, Snapshot
 from .jsonio import encode
 from .models import Contract, EnginePair, EngineSpec, FaultCase, RunReport
@@ -24,6 +26,8 @@ def export_schema():
         evidence=(EvidencePage, ...),
         decision=(Decision, ...),
         reduction=(ReductionPage, ...),
+        conclusion=(ConclusionPage, ...),
+        reductionSuggestion=(ReductionSuggestion, ...),
     )
     schema = envelope.model_json_schema(mode="serialization")
     schema["$defs"]["JsonValue"] = {

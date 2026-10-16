@@ -55,7 +55,7 @@ Copy `fingerprint_id` from the saved receipt:
 python -m faultglass.context history --fingerprint <fingerprint-id> --limit 25
 ```
 
-A fresh workspace correctly reports “No related investigation evidence yet.” Normal recording does not create families, probes, or learned statistics. The separate [experiment planner](PROBES.md) adds its versioned probe/feature catalog when used; it never bootstraps learned history. Unknown fingerprints fail distinctly from valid empty history. The repository accepts an optional ordered engine scope and excluded episode for later callers; it returns facts and provenance, never a probe score or selection.
+A fresh workspace correctly reports “No related investigation evidence yet.” Comparison-only recording does not create families, probes, or learned statistics. Completed saved investigations create provisional or matched behavioral profiles and publish verified contribution statistics through the worker. The separate [experiment planner](PROBES.md) adds its versioned probe/feature catalog when used; it never bootstraps learned history. Unknown fingerprints fail distinctly from valid empty history. The repository accepts an optional ordered engine scope and excluded episode for later callers; it returns facts and provenance, never a probe score or selection.
 
 Progress goes to stderr; successful commands emit one bounded JSON object on stdout. Exit codes: `0` success including empty history, `2` invalid arguments, `1` unavailable/incompatible context or invalid evidence, `130` interruption. Routine errors omit credentials, submitted queries, and tracebacks.
 
@@ -83,7 +83,7 @@ Investigation → EXECUTED_AS → Run → ON_VERSION → EngineVersion
 Run → PRODUCED → Divergence
 ```
 
-Both runs reference the same paired divergence when one exists. Typed future links are `TARGETS_FEATURE`, `SELECTED_PROBE`, `REDUCED_TO`, `MATCHES_FAMILY`, `INVOLVES_FEATURE`, `EFFECTIVE_FOR`, and `DERIVED_TEST`. Every relationship has a stable ID and source provenance. Shared canonical properties retain their first representative title, artifact reference, and creation time.
+Both runs reference the same paired divergence when one exists. Additional typed links are `TARGETS_FEATURE`, `SELECTED_PROBE`, `REDUCED_TO`, `MATCHES_FAMILY`, `INVOLVES_FEATURE`, `EFFECTIVE_FOR`, and `DERIVED_TEST`. Every relationship has a stable ID and source provenance. Shared canonical properties retain their first representative title, artifact reference, and creation time.
 
 [Checked-in Cypher](faultglass/queries/) supplies index creation/introspection, catalog merge, canonical recording, inspection, and history. The history traversal follows fingerprint/features to families and effective probes, requiring a complete classified episode in the same workspace and ordered engine scope. It deduplicates overlapping features, excludes disabled probes and superseded families, and orders by overlap, family, probe, and scope before expanding at most five supporting episodes. Limits range from 1–100, default 25. Missing or malformed supporting evidence fails integrity validation rather than becoming a candidate.
 
