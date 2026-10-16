@@ -8,6 +8,7 @@ from .agent_models import (
     AgentTurn,
 )
 from .analysis_artifacts import AnalysisStore
+from .citations import reference_context, resolve_citations
 from .comparison import material
 from .context_artifacts import load_evidence, read_reference
 from .context_errors import EvidenceIntegrity
@@ -156,11 +157,16 @@ class Explorer:
             "evidenceIds": facts["evidenceIds"],
             "facts": facts,
         }
+        if run.promptVersion == "explorer-v2":
+            context = reference_context(context)
         if len(encode(context)) > 32768:
             return self.degrade(record, run, "input_limit"), None
+        storage = AnalysisStore(self.store.root, record.snapshot.id, "agent")
+        input_ref = storage.put("input-" + digest(context) + ".json", encode(context))
         run.inputArtifactHashes = sorted(
             {
                 record.inputRef.sha256,
+                input_ref.sha256,
                 *run.inputArtifactHashes,
                 *[ref.sha256 for result in run.results for ref in result.references],
                 *(
@@ -176,6 +182,7 @@ class Explorer:
             revision=context["revision"],
             operation="explain_family" if operation == "interpretation" else operation,
             inputHash=digest(context),
+            inputRef=input_ref,
             reservedAt=now(),
         )
         run.turns.append(turn)
@@ -185,6 +192,7 @@ class Explorer:
             record,
             run,
             message="Inspecting connected investigation evidence.",
+            outputs=[input_ref],
         )
         if reserved.snapshot.status in TERMINAL:
             return reserved, None
@@ -201,9 +209,13 @@ class Explorer:
             validate_citations(result, context["evidenceIds"])
             if operation == "request_tool":
                 validate_tool(result, reserved, run, decision)
-            storage = AnalysisStore(self.store.root, record.snapshot.id, "agent")
+            provider_ref = storage.document("provider-response", result)
+            if run.promptVersion == "explorer-v2":
+                result = resolve_citations(result, context["evidenceReferences"])
+                validate_citations(result, facts["evidenceIds"])
             response_ref = storage.document("response", result)
             turn.responseRef = response_ref
+            turn.providerResponseRef = provider_ref
             turn.elapsedMs = elapsed
             run.elapsedMs += elapsed
             fresh = save_run(
@@ -213,7 +225,7 @@ class Explorer:
                 message=("Explorer: " + result.explanation.text)
                 if operation == "request_tool"
                 else "Cited AI interpretation recorded.",
-                outputs=[response_ref],
+                outputs=[provider_ref, response_ref],
             )
             return fresh, result
         except ProviderFailure as exc:

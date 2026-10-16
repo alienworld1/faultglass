@@ -9,11 +9,12 @@ from faultglass.agent_models import (
     AgentToolRequest,
     FingerprintEnrichment,
 )
+from faultglass.context_artifacts import read_reference
 from faultglass.context_config import ContextConfig
 from faultglass.explorer import load_run
 from faultglass.graph_repository import GraphRepository
 from faultglass.investigation_models import TERMINAL, Admission, Status
-from faultglass.jsonio import encode
+from faultglass.jsonio import encode, loads
 from faultglass.public_cases import FLAGSHIP
 from faultglass.worker import Worker
 
@@ -111,6 +112,19 @@ def test_durable_agent_requests_precede_execution_and_reuse_saved_response(
                 ledger = load_run(worker.store, receipt)
                 assert any(r.tool == "execute_ranked_probe" for r in ledger.results)
         assert all(t.inputHash and t.responseRef for t in run.turns)
+        assert run.promptVersion == "explorer-v2"
+        for turn in run.turns:
+            assert turn.inputRef and turn.providerResponseRef
+            context = loads(read_reference(worker.store.root, turn.inputRef))
+            provider_output = loads(
+                read_reference(worker.store.root, turn.providerResponseRef)
+            )
+            canonical = loads(read_reference(worker.store.root, turn.responseRef))
+            if "explanation" in provider_output:
+                handles = provider_output["explanation"]["evidenceIds"]
+                assert canonical["explanation"]["evidenceIds"] == [
+                    context["evidenceReferences"][handle] for handle in handles
+                ]
     finally:
         repo.graph.delete()
         repo.close()

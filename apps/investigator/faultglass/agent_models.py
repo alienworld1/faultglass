@@ -75,8 +75,10 @@ class AgentTurn(Contract):
         "suggest_reduction",
     ]
     inputHash: Hash
+    inputRef: EvidenceReference | None = None
     reservedAt: str
     responseRef: EvidenceReference | None = None
+    providerResponseRef: EvidenceReference | None = None
     failure: str | None = None
     elapsedMs: float = Field(default=0, ge=0, le=CALL_SECONDS * 1000)
 
@@ -90,7 +92,7 @@ class AgentRun(Contract):
     reasonCode: str | None = None
     provider: Literal["gemini"] | None = None
     model: str | None = Field(default=None, max_length=160)
-    promptVersion: Literal["explorer-v1"] = "explorer-v1"
+    promptVersion: Literal["explorer-v1", "explorer-v2"] = "explorer-v2"
     schemaVersion: Literal[1] = 1
     createdAt: str
     updatedAt: str
@@ -136,6 +138,10 @@ class AgentRun(Contract):
             and self.stage == "done"
             and len(self.outputRefs) >= 2
             and all(t.responseRef for t in self.turns)
+            and (
+                self.promptVersion == "explorer-v1"
+                or all(t.inputRef and t.providerResponseRef for t in self.turns)
+            )
         ):
             raise ValueError(
                 "A completed AI investigation requires validated cited outputs."

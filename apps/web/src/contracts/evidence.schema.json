@@ -71,8 +71,8 @@
           "type": "array"
         },
         "promptVersion": {
-          "const": "explorer-v1",
-          "default": "explorer-v1",
+          "default": "explorer-v2",
+          "enum": ["explorer-v1", "explorer-v2"],
           "title": "Promptversion",
           "type": "string"
         },
@@ -240,6 +240,13 @@
           "title": "Inputhash",
           "type": "string"
         },
+        "inputRef": {
+          "anyOf": [
+            { "$ref": "#/$defs/EvidenceReference" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
         "operation": {
           "enum": [
             "request_tool",
@@ -250,6 +257,13 @@
           ],
           "title": "Operation",
           "type": "string"
+        },
+        "providerResponseRef": {
+          "anyOf": [
+            { "$ref": "#/$defs/EvidenceReference" },
+            { "type": "null" }
+          ],
+          "default": null
         },
         "reservedAt": { "title": "Reservedat", "type": "string" },
         "responseRef": {

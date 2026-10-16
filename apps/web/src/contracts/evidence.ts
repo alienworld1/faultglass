@@ -101,7 +101,7 @@ export type Mediatype = string;
 export type Owner = string;
 export type Path = string;
 export type Sha256 = string;
-export type Promptversion = "explorer-v1";
+export type Promptversion = "explorer-v1" | "explorer-v2";
 export type Provider = "gemini" | null;
 export type Reasoncode = string | null;
 /**
@@ -1563,7 +1563,9 @@ export interface AgentTurn {
   failure?: Failure;
   id: Id2;
   inputHash: Inputhash;
+  inputRef?: EvidenceReference | null;
   operation: Operation;
+  providerResponseRef?: EvidenceReference | null;
   reservedAt: Reservedat;
   responseRef?: EvidenceReference | null;
   revision: Revision;
