@@ -84,10 +84,11 @@ def test_structured_operations_validate_schema_citations_and_transport(
             schema = body["tools"][0]["functionDeclarations"][0]["parametersJsonSchema"]
         else:
             schema = body["generationConfig"]["responseJsonSchema"]
-        assert schema["$defs"]["CitedText"]["properties"]["evidenceIds"]["items"] == {
-            "type": "string",
-            "enum": ["a" * 64],
-        }
+        assert schema["$defs"]["CitedText"]["properties"]["evidenceIds"]["items"] == (
+            {"type": "string"}
+            if provider.model.startswith("gemma-")
+            else {"type": "string", "enum": ["a" * 64]}
+        )
         yield io.BytesIO(
             encode(
                 {
@@ -143,9 +144,7 @@ def test_application_and_response_caps_fail_closed(provider, monkeypatch):
         provider.generate("enrich_fingerprint", {"evidenceIds": ["a" * 64]})
 
 
-def test_altered_citation_is_rejected_even_if_the_provider_ignores_its_enum(
-    provider, monkeypatch
-):
+def test_altered_citation_is_rejected_before_dispatch(provider, monkeypatch):
     value = dict(
         observed={**CITATION, "evidenceIds": ["b" * 64]},
         interpretation=CITATION,

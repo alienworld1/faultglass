@@ -61,10 +61,12 @@ class GeminiProvider:
         if len(application) > 32768:
             raise ProviderFailure("input_limit")
         schema = output.model_json_schema()
-        schema["$defs"]["CitedText"]["properties"]["evidenceIds"]["items"] = {
-            "type": "string",
-            "enum": sorted(set(context["evidenceIds"])),
-        }
+        # Native function calling rejects citation-item enums; membership is checked below.
+        if not self._native_tools:
+            schema["$defs"]["CitedText"]["properties"]["evidenceIds"]["items"] = {
+                "type": "string",
+                "enum": sorted(set(context["evidenceIds"])),
+            }
         if operation == "request_tool":
             for name in ("investigationId", "revision", "decisionId"):
                 value = context[name]
