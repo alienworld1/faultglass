@@ -56,6 +56,16 @@ class GeminiProvider:
             raise ProviderFailure("input_limit")
         schema = output.model_json_schema()
         if operation == "request_tool":
+            for name in ("investigationId", "revision", "decisionId"):
+                value = context[name]
+                schema["properties"][name] = (
+                    {"type": "null"}
+                    if value is None
+                    else {
+                        "type": "integer" if name == "revision" else "string",
+                        "enum": [value],
+                    }
+                )
             schema["properties"]["tool"] = {
                 "type": "string",
                 "enum": [context["allowedTool"]],
@@ -74,10 +84,16 @@ class GeminiProvider:
                     "maxOutputTokens": 1024,
                     "thinkingConfig": {
                         "thinkingLevel": "low"
-                        if self.model in {"gemini-3.8-flash", "gemini-3.7-flash"}
+                        if self.model
+                        in {
+                            "gemini-3.8-flash",
+                            "gemini-3.7-flash",
+                            "gemini-flash-latest",
+                        }
                         else "minimal"
                     }
                     if self.model.startswith("gemini-3")
+                    or self.model in {"gemini-flash-latest", "gemini-flash-lite-latest"}
                     else {"thinkingBudget": 0},
                     "responseMimeType": "application/json",
                     "responseJsonSchema": schema,
