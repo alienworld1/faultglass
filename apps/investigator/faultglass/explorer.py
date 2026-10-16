@@ -19,6 +19,7 @@ from .jsonio import digest, encode, loads
 from .lifecycle import cleanup_deadline
 from .llm_provider import ProviderFailure
 from .models import read_case
+from .provider_budget import CALL_SECONDS, MAX_CALLS, TOTAL_MILLISECONDS
 from .public_cases import is_public
 
 TOOLS = {
@@ -133,7 +134,10 @@ class Explorer:
             ), None
         if run.turns and run.turns[-1].responseRef is None:
             return self.degrade(record, run, "uncertain_provider_response"), None
-        if run.calls >= 12 or run.elapsedMs >= 55000:
+        if (
+            run.calls >= MAX_CALLS
+            or run.elapsedMs + CALL_SECONDS * 1000 > TOTAL_MILLISECONDS
+        ):
             return self.degrade(record, run, "provider_budget_exhausted"), None
         from .llm_provider import validate_citations
 
@@ -186,13 +190,13 @@ class Explorer:
             return reserved, None
         started = time.monotonic()
         try:
-            with cleanup_deadline(5):
+            with cleanup_deadline(CALL_SECONDS):
                 try:
                     result = provider.generate(operation, context)
                 except DeadlineExceeded:
                     raise ProviderFailure("provider_timeout") from None
             elapsed = (time.monotonic() - started) * 1000
-            if elapsed > 5000:
+            if elapsed > CALL_SECONDS * 1000:
                 raise ProviderFailure("provider_timeout")
             validate_citations(result, context["evidenceIds"])
             if operation == "request_tool":
@@ -214,7 +218,9 @@ class Explorer:
             return fresh, result
         except ProviderFailure as exc:
             turn.failure = exc.code
-            turn.elapsedMs = min(5000, (time.monotonic() - started) * 1000)
+            turn.elapsedMs = min(
+                CALL_SECONDS * 1000, (time.monotonic() - started) * 1000
+            )
             run.elapsedMs += turn.elapsedMs
             return self.degrade(reserved, run, exc.code), None
 

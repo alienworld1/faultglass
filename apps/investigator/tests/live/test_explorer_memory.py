@@ -20,6 +20,7 @@ from faultglass.models import read_case
 from faultglass.planner import rank_candidates
 from faultglass.planner_models import SourceSnapshot
 from faultglass.probe_graph import catalog
+from faultglass.provider_budget import CALL_SECONDS, MAX_CALLS, TOTAL_MILLISECONDS
 from faultglass.public_cases import FLAGSHIP, RELATED
 from faultglass.worker import Worker
 
@@ -51,8 +52,8 @@ def assert_live(worker, record):
     assert (
         run.provider == "gemini" and run.model == os.environ["FAULTGLASS_GEMINI_MODEL"]
     )
-    assert run.calls <= 12 and run.elapsedMs <= 60000
-    assert all(t.responseRef and t.elapsedMs <= 5000 for t in run.turns)
+    assert run.calls <= MAX_CALLS and run.elapsedMs <= TOTAL_MILLISECONDS
+    assert all(t.responseRef and t.elapsedMs <= CALL_SECONDS * 1000 for t in run.turns)
     assert len(run.outputRefs) >= 2 and record.snapshot.conclusion.interpretationRef
     tools = [r.tool for r in run.results]
     assert tools[:3] == [

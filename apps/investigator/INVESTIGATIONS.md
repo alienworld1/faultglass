@@ -119,7 +119,7 @@ ruff check .
 ruff format --check .
 ```
 
-The Explorer transmits only exact approved built-in cases and approved connected history. Imported cases or private connected history produce a visible data-excluded result. The model requests allowlisted reads/ranking/execution; deterministic planning, isolated engines, classification, exports and memory remain trusted operations. Every call is reserved durably before inference, validated before dispatch, capped at five seconds and bounded payloads, with twelve calls and sixty provider seconds per investigation. An uncertain call degrades; it is never repeated invisibly.
+The Explorer transmits only exact approved built-in cases and approved connected history. Imported cases or private connected history produce a visible data-excluded result. The model requests allowlisted reads/ranking/execution; deterministic planning, isolated engines, classification, exports and memory remain trusted operations. Every call is reserved durably before inference, validated before dispatch, capped at eight seconds and bounded payloads, with twelve calls and sixty provider seconds per investigation. The per-call deadline allows for a measured, schema-valid Gemini 2.5 Flash fingerprint-enrichment response of 5.234 seconds; aggregate inference and investigation deadlines remain unchanged. A call starts only when its full allowance fits the remaining inference budget. An uncertain call degrades; it is never repeated invisibly.
 
 Default test discovery covers deterministic unit/context/integration checks. With the same worker-only key/model configured, explicitly run the separate live acceptance check:
 

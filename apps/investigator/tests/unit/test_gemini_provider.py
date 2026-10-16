@@ -50,7 +50,7 @@ def test_structured_operations_validate_schema_citations_and_transport(
 ):
     @contextmanager
     def response(request, timeout):
-        assert timeout == 5
+        assert timeout == 8
         assert request.full_url.startswith("https://generativelanguage.googleapis.com/")
         assert b"private-unit-credential" not in request.data
         yield io.BytesIO(

@@ -224,7 +224,7 @@
       "properties": {
         "elapsedMs": {
           "default": 0,
-          "maximum": 5000,
+          "maximum": 8000,
           "minimum": 0,
           "title": "Elapsedms",
           "type": "number"

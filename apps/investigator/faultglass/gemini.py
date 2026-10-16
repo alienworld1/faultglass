@@ -5,6 +5,7 @@ import urllib.request
 
 from .jsonio import encode, loads
 from .llm_provider import OPERATIONS, ProviderFailure, validate_citations
+from .provider_budget import CALL_SECONDS
 
 SYSTEM = (
     "You are the Explorer for a database evidence investigation. "
@@ -109,7 +110,7 @@ class GeminiProvider:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=5) as response:
+            with urllib.request.urlopen(request, timeout=CALL_SECONDS) as response:
                 raw = response.read(8193)
             if len(raw) > 8192:
                 raise ProviderFailure("response_limit")

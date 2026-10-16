@@ -4,6 +4,7 @@ from pydantic import Field, field_validator, model_validator
 
 from .context_models import EvidenceReference, evidence_id, validate_timestamp
 from .models import Contract, Hash
+from .provider_budget import CALL_SECONDS, MAX_CALLS, TOTAL_MILLISECONDS
 
 
 class CitedText(Contract):
@@ -77,7 +78,7 @@ class AgentTurn(Contract):
     reservedAt: str
     responseRef: EvidenceReference | None = None
     failure: str | None = None
-    elapsedMs: float = Field(default=0, ge=0, le=5000)
+    elapsedMs: float = Field(default=0, ge=0, le=CALL_SECONDS * 1000)
 
     _time = field_validator("reservedAt")(validate_timestamp)
 
@@ -93,11 +94,11 @@ class AgentRun(Contract):
     schemaVersion: Literal[1] = 1
     createdAt: str
     updatedAt: str
-    calls: int = Field(default=0, ge=0, le=12)
-    elapsedMs: float = Field(default=0, ge=0, le=60000)
+    calls: int = Field(default=0, ge=0, le=MAX_CALLS)
+    elapsedMs: float = Field(default=0, ge=0, le=TOTAL_MILLISECONDS)
     inputArtifactHashes: list[Hash] = Field(default_factory=list, max_length=80)
-    turns: list[AgentTurn] = Field(default_factory=list, max_length=12)
-    results: list[AgentToolResult] = Field(default_factory=list, max_length=12)
+    turns: list[AgentTurn] = Field(default_factory=list, max_length=MAX_CALLS)
+    results: list[AgentToolResult] = Field(default_factory=list, max_length=MAX_CALLS)
     outputRefs: list[EvidenceReference] = Field(default_factory=list, max_length=4)
     stage: Literal[
         "context",

@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from faultglass.agent_models import AgentToolRequest
+from faultglass.agent_models import AgentRun, AgentToolRequest
 from faultglass.explorer import validate_tool
 from faultglass.gemini import agent_readiness
 from faultglass.jsonio import encode
@@ -78,6 +78,42 @@ def test_missing_credentials_and_explicit_diagnostic_mode_are_distinct(monkeypat
     monkeypatch.setenv("FAULTGLASS_INVESTIGATION_MODE", "deterministic_diagnostic")
     assert agent_readiness()["agentReason"] == "deterministic_diagnostic"
     assert not agent_readiness()["agentReady"]
+
+
+def test_longer_individual_calls_still_obey_total_time_and_call_limits():
+    timestamp = "2026-10-16T00:00:00+00:00"
+    turns = [
+        {
+            "id": f"{index:064x}",
+            "revision": index + 1,
+            "operation": "request_tool",
+            "inputHash": "a" * 64,
+            "reservedAt": timestamp,
+            "elapsedMs": 5000,
+        }
+        for index in range(12)
+    ]
+    turns[0]["elapsedMs"], turns[1]["elapsedMs"] = 8000, 2000
+    values = {
+        "investigationId": ID,
+        "mode": "agent",
+        "status": "running",
+        "provider": "gemini",
+        "model": "gemini-isolated-fixture",
+        "createdAt": timestamp,
+        "updatedAt": timestamp,
+        "calls": 12,
+        "elapsedMs": 60000,
+        "turns": turns,
+    }
+    assert AgentRun.model_validate(values).elapsedMs == 60000
+    with pytest.raises(ValueError, match="less than or equal to 60000"):
+        AgentRun.model_validate({**values, "elapsedMs": 60000.1})
+    with pytest.raises(ValueError, match="less than or equal to 12"):
+        AgentRun.model_validate({**values, "calls": 13})
+    turns[0]["elapsedMs"] = 8000.1
+    with pytest.raises(ValueError, match="less than or equal to 8000"):
+        AgentRun.model_validate(values)
 
 
 def test_admission_does_not_need_the_worker_credential_in_the_api_environment(
