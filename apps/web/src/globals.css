@@ -3,6 +3,25 @@
 :root {
   --fg-bg: #f2f3ef;
   --fg-surface-0: #f7f8f4;
+  --fg-surface-1: #eceee9;
+  --fg-surface-2: #e2e5df;
+  --fg-surface-inset: #d9ddd6;
+  --fg-ink-2: #343a36;
+  --fg-line-strong: #969f98;
+  --fg-line-dark: #5e6761;
+  --fg-interpretation: #68627a;
+  --fg-interpretation-soft: #e6e3ea;
+  --fg-unresolved: #706447;
+  --fg-unresolved-soft: #e8e3d7;
+  --fg-evidence-soft: #dce8e2;
+  --fg-divergence-soft: #ecddd9;
+  --motion-fast: 120ms;
+  --motion-short: 180ms;
+  --motion-medium: 280ms;
+  --motion-long: 420ms;
+  --motion-focus: 600ms;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-linearish: cubic-bezier(0.4, 0, 0.2, 1);
   --fg-ink: #171a18;
   --fg-ink-3: #626a64;
   --fg-line: #c7cdc6;
@@ -13,6 +32,23 @@
 }
 
 @theme inline {
+  --color-inset: var(--fg-surface-inset);
+  --color-secondary: var(--fg-surface-1);
+  --color-sunken: var(--fg-surface-2);
+  --color-interpretation: var(--fg-interpretation);
+  --color-interpretation-soft: var(--fg-interpretation-soft);
+  --color-unresolved: var(--fg-unresolved);
+  --color-unresolved-soft: var(--fg-unresolved-soft);
+  --color-evidence-soft: var(--fg-evidence-soft);
+  --color-divergence-soft: var(--fg-divergence-soft);
+  --color-line-strong: var(--fg-line-strong);
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+  --text-3xl: 34px;
   --color-canvas: var(--fg-bg);
   --color-surface: var(--fg-surface-0);
   --color-ink: var(--fg-ink);
@@ -22,7 +58,7 @@
   --color-evidence: var(--fg-evidence);
   --color-divergence: var(--fg-divergence);
   --color-failure: var(--fg-failure);
-  --font-sans: "Geist", system-ui, sans-serif;
+  --font-sans: "Geist Variable", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --radius-sm: 2px;
   --radius-md: 5px;
@@ -35,6 +71,17 @@
     background: var(--fg-bg);
     color: var(--fg-ink);
     font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: 1.45;
+  }
+
+  button,
+  summary,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
   }
 
   :focus-visible {

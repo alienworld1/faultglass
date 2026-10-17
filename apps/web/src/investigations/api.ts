@@ -7,9 +7,18 @@ import type {
 
 export class RequestError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  fields: { path: string; message: string }[];
+  code: string;
+  constructor(
+    message: string,
+    status: number,
+    fields: { path: string; message: string }[] = [],
+    code = "",
+  ) {
     super(message);
     this.status = status;
+    this.fields = fields;
+    this.code = code;
   }
 }
 
@@ -18,11 +27,27 @@ export async function request<T>(
   options?: RequestInit,
 ): Promise<T> {
   const response = await fetch(url, options);
-  const body = await response.json();
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    throw new RequestError(
+      "We couldn’t read this evidence. Retry connection.",
+      response.ok ? 409 : response.status,
+    );
+  }
   if (!response.ok)
     throw new RequestError(
-      body.error?.message ?? "We couldn’t load this investigation.",
+      body?.error?.message ?? "We couldn’t load this investigation.",
       response.status,
+      Array.isArray(body?.error?.fields)
+        ? body.error.fields.filter(
+            (field: { path?: unknown; message?: unknown }) =>
+              typeof field.path === "string" &&
+              typeof field.message === "string",
+          )
+        : [],
+      body?.error?.code ?? "",
     );
   return body as T;
 }
