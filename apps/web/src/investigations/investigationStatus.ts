@@ -1,0 +1,15 @@
+export const investigationStatus: Record<string, string> = {
+  QUEUED: "Waiting to investigate.",
+  FINGERPRINTING: "Reading the query’s structure",
+  REPRODUCING: "Reproducing the difference",
+  PLANNING: "Choosing an experiment",
+  PROBING: "Running an experiment",
+  REDUCING: "Looking for a smaller case.",
+  CLASSIFYING: "Comparing fault-family evidence…",
+  EXPORTING: "Preparing downloads and saving investigation memory…",
+  COMPLETE: "Investigation complete.",
+  NOT_REPRODUCED: "No difference observed for this case and engine pair.",
+  UNRESOLVED: "Investigation ended without a supported conclusion.",
+  CANCELLED: "Investigation cancelled. Collected evidence is preserved.",
+  FAILED: "We couldn’t finish this investigation.",
+};

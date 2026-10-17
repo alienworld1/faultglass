@@ -38,6 +38,7 @@ const button = (label: string) =>
     (value) => value.textContent?.trim() === label,
   )!;
 function intakeFetch(url: string) {
+  if (url === "/api/investigations") return respond({ items: [] });
   if (url === "/api/engine-matrix")
     return respond({
       engines: [],
@@ -90,6 +91,51 @@ afterEach(async () => {
 });
 
 describe("case admission", () => {
+  it("loads recent saved links on request without admitting an investigation", async () => {
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/investigations" && init?.method !== "POST")
+        return respond({
+          items: [
+            {
+              id,
+              title: "Saved investigation",
+              status: "COMPLETE",
+              baseline: "Baseline",
+              target: "Target",
+              plannedExperiments: 2,
+              updatedAt: "2026-10-17T12:00:00+00:00",
+              familyState: "provisional",
+            },
+          ],
+        });
+      return intakeFetch(url);
+    });
+    vi.stubGlobal("fetch", fetch);
+    await mount(<CaseIntake />);
+    expect(
+      fetch.mock.calls.some(([url]) => url === "/api/investigations"),
+    ).toBe(false);
+    const details = [...container.querySelectorAll("details")].find((item) =>
+      item
+        .querySelector("summary")
+        ?.textContent?.includes("Recent investigations"),
+    )!;
+    await act(async () => {
+      details.open = true;
+      details.dispatchEvent(new Event("toggle"));
+    });
+    await flush();
+    expect(
+      container.querySelector(`a[href="/investigations/${id}"]`)?.textContent,
+    ).toBe("Saved investigation");
+    expect(container.textContent).toContain("Investigation complete.");
+    expect(
+      fetch.mock.calls.some(
+        ([url, init]) =>
+          url === "/api/investigations" && init?.method === "POST",
+      ),
+    ).toBe(false);
+  });
   it("waits after rate pressure and keeps the same start identity", async () => {
     const keys: string[] = [];
     vi.stubGlobal(
@@ -143,12 +189,34 @@ describe("case admission", () => {
     );
     await flush();
     expect(button("Start investigation").disabled).toBe(true);
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 375)));
     await act(async () =>
       resolveCurrent(respond({ title: "Current", query: "RETURN 1" })),
     );
     await flush();
     expect(button("Start investigation").disabled).toBe(false);
     expect(container.textContent).not.toContain("Obsolete");
+  });
+  it("checks only the settled draft and marks the selected built-in case", async () => {
+    const fetch = vi.fn(async (url: string) => intakeFetch(url));
+    vi.stubGlobal("fetch", fetch);
+    await mount(<CaseIntake />);
+    const first = button("Trailing MATCH after a procedure call");
+    const second = button("Trailing MATCH with two node labels");
+    expect(first.getAttribute("aria-pressed")).toBe("true");
+    const calls = () =>
+      fetch.mock.calls.filter(([url]) => url === "/api/cases/validate").length;
+    const initial = calls();
+    await act(async () => second.click());
+    expect(second.getAttribute("aria-pressed")).toBe("true");
+    expect(first.getAttribute("aria-pressed")).toBe("false");
+    expect(button("Start investigation").disabled).toBe(true);
+    await flush();
+    expect(calls()).toBe(initial);
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 375)));
+    await flush();
+    expect(calls()).toBe(initial + 1);
+    expect(button("Start investigation").disabled).toBe(false);
   });
   it("admits once on synchronous double click and recovers a lost acknowledgement", async () => {
     const fetch = vi.fn(async (url: string) => {

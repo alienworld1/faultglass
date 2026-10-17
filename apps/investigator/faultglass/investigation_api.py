@@ -20,6 +20,8 @@ from .investigation_models import (
     Admission,
     EvidenceItem,
     EvidencePage,
+    InvestigationSummary,
+    RecentInvestigations,
 )
 from .investigation_store import InvestigationStore, RuntimeErrorResponse
 from .jsonio import encode, loads
@@ -33,6 +35,58 @@ streams = threading.BoundedSemaphore(16)
 rate_lock = threading.Lock()
 starts = {}
 COMMAND_SECONDS = 15
+
+
+@router.get("")
+def recent_investigations():
+    from .analysis_models import ClassificationEvidence
+    from .conclusion_reads import owned_document
+
+    with closing(GraphRepository()) as repository:
+        store = InvestigationStore(repository)
+        items = []
+        for (job_id,) in repository._query("runtime-recent"):
+            # Verify the graph-bound receipt; detailed evidence is verified on open.
+            record = store.load(job_id, verify_outputs=False)
+            snapshot = record.snapshot
+            classification = (
+                owned_document(
+                    store,
+                    record,
+                    record.classificationRef,
+                    "classification",
+                    ClassificationEvidence,
+                )
+                if record.classificationRef
+                else None
+            )
+            if classification and classification.investigationId != job_id:
+                raise EvidenceIntegrity()
+            items.append(
+                InvestigationSummary(
+                    id=snapshot.id,
+                    title=snapshot.title,
+                    status=snapshot.status,
+                    baseline=snapshot.engines[0].label,
+                    target=snapshot.engines[1].label,
+                    updatedAt=snapshot.updatedAt,
+                    plannedExperiments=snapshot.budget.reservedProbes,
+                    verifiedDifferences=1
+                    + sum(
+                        probe.signature is not None
+                        for probe in classification.profile.probes
+                    )
+                    if classification
+                    else (0 if snapshot.status == "NOT_REPRODUCED" else None),
+                    sourceBehavior=" / ".join(classification.profile.sourceStatuses)
+                    if classification
+                    else None,
+                    familyState=snapshot.conclusion.state
+                    if snapshot.conclusion
+                    else None,
+                )
+            )
+        return bounded_response(RecentInvestigations(items=items).model_dump())
 
 
 def error(code, message, status, *, fields=None):

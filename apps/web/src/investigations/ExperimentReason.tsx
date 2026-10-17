@@ -1,4 +1,5 @@
 import { parseDecision, selectedCandidate } from "./decision";
+import GraphSelectionPath from "./GraphSelectionPath";
 export default function ExperimentReason({ data }: { data: string }) {
   const plan = parseDecision(data);
   if (!plan)
@@ -21,6 +22,7 @@ export default function ExperimentReason({ data }: { data: string }) {
     Utility: candidate.utility,
     "Feature fit": candidate.feature_fit,
     "Historical yield": candidate.historical_yield,
+    "Verified boundary value": candidate.boundary_value ?? 0,
     "Version affinity": candidate.version_affinity,
     Novelty: candidate.novelty,
     "Normalized cost": candidate.normalized_cost,
@@ -32,6 +34,7 @@ export default function ExperimentReason({ data }: { data: string }) {
     <div className="min-w-0 space-y-4 text-sm">
       <p className="break-words font-mono">{candidate.probe_id}</p>
       <p>{candidate.reason}</p>
+      <GraphSelectionPath candidate={candidate} />
       <div className="border-l-2 border-accent pl-3">
         <h4 className="font-semibold">Transformation</h4>
         <pre tabIndex={0} className="mt-2 overflow-x-auto font-mono text-xs">
@@ -84,12 +87,6 @@ export default function ExperimentReason({ data }: { data: string }) {
       <p>
         Evidence source: {candidate.source} · Cost class: {candidate.cost_class}
       </p>
-      {candidate.chosen_history_key ? (
-        <p className="break-all">
-          Historical relationship reference:{" "}
-          <span className="font-mono">{candidate.chosen_history_key}</span>
-        </p>
-      ) : null}
       <details>
         <summary className="min-h-11 cursor-pointer py-3">
           Case identities and version scope
@@ -101,6 +98,7 @@ export default function ExperimentReason({ data }: { data: string }) {
           {JSON.stringify(
             {
               selection: plan.selection_id,
+              history: candidate.chosen_history_key,
               fingerprint: plan.fingerprint_id,
               originalCase: plan.seed_case_id,
               inputCase: candidate.input_case_id,

@@ -56,15 +56,9 @@ export default function RegressionDownloads({
     <div className="border-t border-line py-6">
       <h3 className="font-semibold">Take the evidence with you</h3>
       <p className="mt-3 text-sm text-muted">
-        Smaller verified case retained by the supported reductions; global
-        minimality is not established.{" "}
-        {manifest.expectationBasis === "baseline_observation"
-          ? "The test records observed baseline compatibility behavior; it does not establish universal correctness."
-          : manifest.expectationBasis === "unasserted"
-            ? "No supported expected behavior was available for this assertion."
-            : "The test encodes the case’s explicit expectation."}{" "}
-        The regression test is a scaffold requiring your repository harness.
-        Wire its disposable graph fixture into your repository before use.
+        Download the retained case, a regression-test scaffold, and the evidence
+        report. Connect the test’s disposable graph fixture to your repository
+        harness before running it.
       </p>
       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
         {manifest.files.map((file) => (
@@ -78,6 +72,20 @@ export default function RegressionDownloads({
           </button>
         ))}
       </div>
+      <details className="mt-3">
+        <summary className="min-h-11 cursor-pointer py-3 text-sm">
+          What the regression test asserts
+        </summary>
+        <p className="text-sm text-muted">
+          {manifest.expectationBasis === "baseline_observation"
+            ? "The test records observed baseline compatibility behavior; it does not establish universal correctness."
+            : manifest.expectationBasis === "unasserted"
+              ? "No supported expected behavior was available for this assertion."
+              : "The test encodes the case’s explicit expectation."}{" "}
+          The retained case was verified by the supported reductions; global
+          minimality is not established.
+        </p>
+      </details>
       {download.isPending ? (
         <p className="mt-2 text-sm" role="status">
           Verifying download…

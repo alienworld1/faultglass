@@ -34,16 +34,19 @@ Probe → TARGETS_FEATURE → Feature
 
 Historical counters must reference readable artifacts and verified classified episodes in their ordered engine scope. Current investigations, disabled probes, and superseded families cannot supply usable history. Unknown tools are recorded as exclusions and cannot install executable code. A conflicting registered definition fails integrity validation. Catalog bootstrap adds only probes and feature-target relationships, without classified history or effectiveness counters.
 
-`planner-v1` freezes these rules. Let `F` be the original fingerprint's features, `T` the probe's targets, and `H` the shared family features. All feature weights are one:
+`planner-v2` uses the following rules. Let `F` be the original fingerprint's features, `T` the probe's targets, and `H` the shared family features. All feature weights are one:
 
-| Factor           | Rule                                                                                                                                                                            |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Feature fit      | With history: `0.5 ×                                                                                                                                                            | F ∩ T | /   | T   | + 0.5 × | H   | /   | F   | `; otherwise ` | F ∩ T | /   | T   | `.  |
-| Historical yield | `(successes + 1) / (attempts + 2)`; absent history uses zero counters.                                                                                                          |
-| Version affinity | `1` for an exact ordered pair and comparator; `0.5` for different identities in the same ordered lineages and comparator. Reversed roles or different comparators are excluded. |
-| Novelty          | `1 / sqrt(attempts + 1)`.                                                                                                                                                       |
-| Normalized cost  | Small `0.25`, medium `0.5`, large `1`. With nonzero historical attempts, average the class cost with `min(avg_cost_ms / 60000, 1)`.                                             |
-| Utility          | `0.35 × feature_fit + 0.30 × historical_yield + 0.20 × version_affinity + 0.10 × novelty − 0.05 × normalized_cost`.                                                             |
+| Factor                  | Rule                                                                                                                                                                   |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Feature fit             | With history: `0.5 × count(F ∩ T) / count(T) + 0.5 × count(F ∩ H) / count(F)`; otherwise `count(F ∩ T) / count(T)`.                                                    |
+| Historical yield        | `(successes + 1) / (attempts + 2)`; absent history uses zero counters.                                                                                                 |
+| Version affinity        | `1` for an exact ordered pair and comparator; `0.5` for matching ordered lineages and comparator. Reversed roles or different comparators are excluded.                |
+| Novelty                 | `1 / sqrt(attempts + 1)`.                                                                                                                                              |
+| Normalized cost         | Small `0.25`, medium `0.5`, large `1`. With historical attempts, average the class cost with `min(avg_cost_ms / 60000, 1)`.                                            |
+| Verified boundary value | `1` only when the selected graph memory's latest verified contribution records a successful semantic contrast for this probe, family and ordered scope; otherwise `0`. |
+| Utility                 | `0.35 × feature_fit + 0.30 × historical_yield + 0.20 × version_affinity + 0.10 × novelty − 0.05 × normalized_cost + 0.10 × boundary_value`.                            |
+
+A semantic contrast changes observed behavior and helps locate the fault family's boundary. Prioritizing a verified contrast lets a later related case check that boundary first. The value comes from the graph-linked, hash-verified memory receipt and its provenance chain, never from a model claim or a probe name. Counts and execution costs remain unchanged. This avoids relying on small execution-time differences when two strategies have equal success rates. Saved `planner-v1` decisions retain their original scores and immutable bytes; their boundary value is zero.
 
 Each family/probe/scope row is scored separately. Counters are never summed across overlapping paths. The best row represents a probe; equal rows use family ID and canonical ordered scope. Probe ties use ascending probe ID. Identical transformed cases keep the smallest probe ID. Selection uses unrounded values; graph numeric summaries use six decimal places to round-trip through the pinned server. The immutable plan retains exact inputs and scores. Scores are utility, never confidence or probability. History is bounded to 100 rows and five supporting episodes per row; a 101st row fails explicitly.
 

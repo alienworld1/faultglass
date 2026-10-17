@@ -685,8 +685,8 @@
           "type": "string"
         },
         "planner_version": {
-          "const": "planner-v1",
-          "default": "planner-v1",
+          "default": "planner-v2",
+          "enum": ["planner-v1", "planner-v2"],
           "title": "Planner Version",
           "type": "string"
         },
@@ -1539,6 +1539,63 @@
       "title": "InvestigationNarrative",
       "type": "object"
     },
+    "InvestigationSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": { "maxLength": 160, "title": "Baseline", "type": "string" },
+        "familyState": {
+          "anyOf": [
+            {
+              "enum": ["matched", "provisional", "unresolved"],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "title": "Familystate"
+        },
+        "id": { "title": "Id", "type": "string" },
+        "plannedExperiments": {
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Plannedexperiments",
+          "type": "integer"
+        },
+        "sourceBehavior": {
+          "anyOf": [{ "maxLength": 40, "type": "string" }, { "type": "null" }],
+          "default": null,
+          "title": "Sourcebehavior"
+        },
+        "status": { "$ref": "#/$defs/Status" },
+        "target": { "maxLength": 160, "title": "Target", "type": "string" },
+        "title": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "updatedAt": { "title": "Updatedat", "type": "string" },
+        "verifiedDifferences": {
+          "anyOf": [
+            { "maximum": 5, "minimum": 0, "type": "integer" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Verifieddifferences"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "status",
+        "baseline",
+        "target",
+        "updatedAt",
+        "plannedExperiments",
+        "familyState"
+      ],
+      "title": "InvestigationSummary",
+      "type": "object"
+    },
     "JsonValue": {
       "anyOf": [
         { "type": "null" },
@@ -1918,6 +1975,13 @@
           "title": "Avg Cost Ms",
           "type": "number"
         },
+        "boundary_value": {
+          "default": 0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Boundary Value",
+          "type": "number"
+        },
         "chosen_history_key": {
           "anyOf": [
             { "maxLength": 4096, "minLength": 1, "type": "string" },
@@ -2083,6 +2147,20 @@
       },
       "required": ["code", "message"],
       "title": "Reason",
+      "type": "object"
+    },
+    "RecentInvestigations": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": { "$ref": "#/$defs/InvestigationSummary" },
+          "maxItems": 10,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": ["items"],
+      "title": "RecentInvestigations",
       "type": "object"
     },
     "ReductionAttempt": {
@@ -3011,6 +3089,7 @@
     "evidence": { "$ref": "#/$defs/EvidencePage" },
     "investigation": { "$ref": "#/$defs/Snapshot" },
     "pair": { "$ref": "#/$defs/EnginePair" },
+    "recentInvestigations": { "$ref": "#/$defs/RecentInvestigations" },
     "reduction": { "$ref": "#/$defs/ReductionPage" },
     "reductionSuggestion": { "$ref": "#/$defs/ReductionSuggestion" },
     "report": { "$ref": "#/$defs/RunReport" }
@@ -3022,6 +3101,7 @@
     "report",
     "admission",
     "investigation",
+    "recentInvestigations",
     "event",
     "evidence",
     "decision",

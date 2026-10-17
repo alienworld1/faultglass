@@ -50,9 +50,9 @@ export default function HistoricalInfluence({
           Selected probe rank comparison is unavailable.
         </p>
       )}
-      <p className="mt-3 break-all text-sm">
-        Relationship references:{" "}
-        <span className="font-mono">{influence.pathRefs.join(" · ")}</span>
+      <p className="mt-3 text-sm text-muted">
+        {influence.pathRefs.length} saved graph relationships connect this
+        decision to prior evidence. Inspect their references below.
       </p>
       <details>
         <summary className="min-h-11 cursor-pointer py-3 text-sm">

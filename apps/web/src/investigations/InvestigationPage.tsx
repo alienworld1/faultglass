@@ -10,22 +10,7 @@ import InvestigationConclusion from "./InvestigationConclusion";
 import ReductionLineage from "./ReductionLineage";
 import { reductionAction } from "./reductionCopy";
 import EvidenceDisclosure from "./EvidenceDisclosure";
-
-const labels: Record<string, string> = {
-  QUEUED: "Waiting to investigate.",
-  FINGERPRINTING: "Fingerprinting case",
-  REPRODUCING: "Reproducing the difference",
-  PLANNING: "Choosing an experiment",
-  PROBING: "Running an experiment",
-  REDUCING: "Looking for a smaller case.",
-  CLASSIFYING: "Comparing fault-family evidence…",
-  EXPORTING: "Preparing downloads and saving investigation memory…",
-  COMPLETE: "Investigation complete.",
-  NOT_REPRODUCED: "No difference observed for this case and engine pair.",
-  UNRESOLVED: "Investigation ended without a supported conclusion.",
-  CANCELLED: "Investigation cancelled. Collected evidence is preserved.",
-  FAILED: "We couldn’t finish this investigation.",
-};
+import { investigationStatus as labels } from "./investigationStatus";
 
 export default function InvestigationPage({ id }: { id: string }) {
   const [retry, setRetry] = useState(0);
@@ -120,7 +105,7 @@ export default function InvestigationPage({ id }: { id: string }) {
               <p className="mt-2 text-sm">{snapshot.terminalReason.message}</p>
             ) : null}
             <p className="mt-4 text-sm text-muted">
-              Experiments reserved: {snapshot.budget.reservedProbes} /{" "}
+              Experiment budget: {snapshot.budget.reservedProbes} /{" "}
               {snapshot.budget.maxProbes} · Evidence:{" "}
               {snapshot.budget.chargedBytes.toLocaleString()} /{" "}
               {snapshot.budget.maxArtifactBytes.toLocaleString()} bytes

@@ -6,6 +6,7 @@ from .planner_models import ProbeEligibility, RankedCandidate, Rejection
 from .probe_transforms import transform
 
 COSTS = {"small": 0.25, "medium": 0.5, "large": 1.0}
+PLANNER_VERSION = "planner-v2"
 
 
 def history_key(row):
@@ -44,6 +45,7 @@ def factors(features, targets, row=None, version_affinity=0.0, cost_class="small
         version_affinity=version_affinity,
         novelty=1 / sqrt(attempts + 1),
         normalized_cost=normalized_cost,
+        boundary_value=float(bool(row and getattr(row, "semantic_contrast", False))),
     )
     result["utility"] = (
         0.35 * result["feature_fit"]
@@ -51,6 +53,7 @@ def factors(features, targets, row=None, version_affinity=0.0, cost_class="small
         + 0.20 * result["version_affinity"]
         + 0.10 * result["novelty"]
         - 0.05 * result["normalized_cost"]
+        + 0.10 * result["boundary_value"]
     )
     return result
 

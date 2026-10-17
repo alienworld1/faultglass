@@ -17,7 +17,7 @@ from .context_phase import child_id, engine_identity
 from .execution import run_case
 from .jsonio import digest, encode, loads
 from .models import RunLimits, read_case
-from .planner import rank_candidates
+from .planner import PLANNER_VERSION, rank_candidates
 from .planner_models import Decision, ExecutionJournal, ProbeResult, SourceSnapshot
 from .planning_artifacts import PlanningStore
 from .probe_graph import catalog, commit_phase, now, phase_receipt
@@ -69,7 +69,7 @@ def load_plan(repository, store):
     ):
         raise EvidenceIntegrity()
     documents = {
-        "plan.json": encode(plan.model_dump()),
+        "plan.json": store.get("plan.json"),
         "source-snapshot.json": read_reference(store.root, plan.source_snapshot_ref),
     }
     for candidate in plan.candidates:
@@ -173,7 +173,7 @@ def plan_probe(repository, seed_id):
                     "seed": seed_id,
                     "manifest": manifest,
                     "registry": REGISTRY_SHA256,
-                    "planner": "planner-v1",
+                    "planner": PLANNER_VERSION,
                 }
             ),
             investigation_id=seed_id,

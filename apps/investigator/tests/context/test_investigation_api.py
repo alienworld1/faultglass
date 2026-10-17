@@ -49,6 +49,60 @@ def body(name="matching"):
     }
 
 
+def test_recent_investigations_are_bounded_and_do_not_expose_case_contents(
+    connected_api,
+):
+    from faultglass.investigation_models import Admission, Status
+
+    client, repo = connected_api
+    assert client.get("/api/investigations").json() == {"items": []}
+    store = InvestigationStore(repo)
+    identities = []
+    for _ in range(11):
+        record, _ = store.admit(Admission(**body()), str(uuid4()))
+        identities.append(record.snapshot.id)
+        store.commit(
+            record.snapshot.id,
+            "investigation.cancelled",
+            "Investigation cancelled.",
+            status=Status.CANCELLED,
+            update={
+                "terminalReason": {
+                    "code": "cancelled",
+                    "message": "Investigation cancelled.",
+                }
+            },
+        )
+    response = client.get("/api/investigations")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert len(items) == 10
+    assert [item["id"] for item in items] == list(reversed(identities[1:]))
+    assert all(
+        item["status"] == "CANCELLED" and item["plannedExperiments"] == 0
+        for item in items
+    )
+    assert all(
+        set(item)
+        == {
+            "id",
+            "title",
+            "status",
+            "baseline",
+            "target",
+            "updatedAt",
+            "plannedExperiments",
+            "verifiedDifferences",
+            "sourceBehavior",
+            "familyState",
+        }
+        for item in items
+    )
+    assert (
+        "caseFile" not in response.text and "runtime_artifact_ref" not in response.text
+    )
+
+
 def test_api_admission_returns_promptly_and_replay_survives_restart(
     connected_api, monkeypatch
 ):

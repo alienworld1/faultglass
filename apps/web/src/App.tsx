@@ -10,6 +10,12 @@ const SavedInvestigation = lazy(
 export default function App() {
   return (
     <div className="mx-auto min-h-dvh w-full max-w-[1600px] min-w-0 px-4 sm:px-8">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-4 focus:z-50 focus:bg-surface focus:p-3"
+      >
+        Skip to content
+      </a>
       <header className="flex h-13 items-center justify-between border-b border-line">
         <Link
           to="/"
@@ -19,7 +25,7 @@ export default function App() {
         </Link>
         <span className="text-sm text-muted">FalkorDB evidence workspace</span>
       </header>
-      <main id="main-content" className="min-w-0">
+      <main id="main-content" tabIndex={-1} className="min-w-0">
         <Routes>
           <Route path="/" element={<CaseIntake />} />
           <Route

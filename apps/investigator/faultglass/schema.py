@@ -5,7 +5,13 @@ from pydantic import create_model
 
 from .agent_models import ReductionSuggestion
 from .analysis_models import ConclusionPage
-from .investigation_models import Admission, Event, EvidencePage, Snapshot
+from .investigation_models import (
+    Admission,
+    Event,
+    EvidencePage,
+    RecentInvestigations,
+    Snapshot,
+)
 from .jsonio import encode
 from .models import Contract, EnginePair, EngineSpec, FaultCase, RunReport
 from .planner_models import Decision
@@ -22,6 +28,7 @@ def export_schema():
         report=(RunReport, ...),
         admission=(Admission, ...),
         investigation=(Snapshot, ...),
+        recentInvestigations=(RecentInvestigations, ...),
         event=(Event, ...),
         evidence=(EvidencePage, ...),
         decision=(Decision, ...),

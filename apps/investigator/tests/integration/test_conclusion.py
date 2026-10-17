@@ -61,6 +61,11 @@ def test_verified_downloads_semantic_assertion_and_replay(completed, tmp_path):
         "repeated_source",
         "semantic_contrast",
     ]
+    history = worker.repository.get_fingerprint_history(record.snapshot.fingerprintId)
+    assert {row.probe_type: row.semantic_contrast for row in history.candidates} == {
+        "INSERT_WITH_BEFORE_TERMINAL_MATCH": False,
+        "REPLACE_TERMINAL_MATCH_WITH_OPTIONAL": True,
+    }
     before = [e.model_dump() for e in page.memory.entries]
     for file in page.exports.files:
         reference, data = download(worker.store, record, file.key)

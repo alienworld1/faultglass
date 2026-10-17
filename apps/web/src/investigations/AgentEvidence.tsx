@@ -19,16 +19,17 @@ export default function AgentEvidence({
           : agent.status === "data_excluded"
             ? "This case or its connected history is excluded from AI sharing. Verified evidence is preserved."
             : agent.status === "degraded"
-              ? "Interpretation is unavailable. Verified evidence is preserved."
+              ? finished
+                ? "The AI investigation was interrupted. Review the verified evidence and recorded limits."
+                : "The AI investigation was interrupted. Automatic checks can continue; verified evidence is preserved."
               : agent.status === "completed"
                 ? "The Explorer inspected connected evidence and requested the recorded experiments."
                 : finished
                   ? "Interpretation is unavailable. Verified evidence is preserved."
                   : "Inspecting connected investigation evidence…"}
       </p>
-      <p className="mt-2 break-words font-mono text-xs">
-        Saved agent: {agent.model || "No model recorded"} · {agent.status}
-        {agent.reasonCode ? ` · ${agent.reasonCode}` : ""}
+      <p className="mt-2 break-words text-xs text-muted">
+        Model: {agent.model || "No model recorded"}
       </p>
       {interpretation ? (
         <dl className="mt-4 space-y-4 border-l-2 border-interpretation pl-4">
@@ -52,6 +53,10 @@ export default function AgentEvidence({
         <summary className="min-h-11 cursor-pointer py-3 text-sm">
           Inspect AI action receipts
         </summary>
+        <p className="mb-3 break-words font-mono text-xs">
+          Saved status: {agent.status}
+          {agent.reasonCode ? ` · ${agent.reasonCode}` : ""}
+        </p>
         <pre
           tabIndex={0}
           className="max-h-80 overflow-auto bg-surface p-3 font-mono text-xs"

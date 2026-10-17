@@ -46,8 +46,8 @@ export default function EvidenceInspector({
         </p>
       ) : (
         <p className="mt-3 text-sm">
-          Case, selection and observations are coupled by saved sequence{" "}
-          {subject.sequence}.
+          Review the saved query, why it was chosen, and what happened on each
+          engine in this comparison.
         </p>
       )}
       <h3 className="mt-6 mb-3 text-xs uppercase tracking-wider text-muted">
@@ -67,7 +67,7 @@ export default function EvidenceInspector({
             <PairedEvidence observations={subject.observations} />
           ) : (
             <p className="text-sm">
-              No paired observations have been saved for this subject yet.
+              Results for this comparison haven’t been saved yet.
             </p>
           )}
         </div>

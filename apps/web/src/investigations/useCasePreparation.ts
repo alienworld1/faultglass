@@ -4,6 +4,7 @@ import type { EnginePair, EngineSpec } from "../contracts/evidence";
 import builtInCase from "../cases/call-yield.faultglass.json";
 import { request } from "./api";
 import { retryRead } from "./queries";
+import { useDebouncedValue } from "./useDebouncedValue";
 
 const builtIn = JSON.stringify(builtInCase, null, 2);
 type Matrix = {
@@ -26,6 +27,8 @@ export function useCasePreparation() {
   const importGeneration = useRef(0);
   const [draftVersion, setDraftVersion] = useState(0);
   const errorSummary = useRef<HTMLDivElement>(null);
+  const settledVersion = useDebouncedValue(draftVersion, 350);
+  const editing = settledVersion !== draftVersion;
   const matrix = useQuery({
     queryKey: ["engine-matrix"],
     queryFn: ({ signal }) => request<Matrix>("/api/engine-matrix", { signal }),
@@ -39,7 +42,7 @@ export function useCasePreparation() {
   });
   const validation = useQuery({
     queryKey: ["case-validation", caseFile, pairId, draftVersion],
-    enabled: !importError && !importing,
+    enabled: !importError && !importing && !editing,
     queryFn: ({ signal }) =>
       request<{ title: string; query: string }>("/api/cases/validate", {
         method: "POST",
@@ -106,6 +109,7 @@ export function useCasePreparation() {
   const currentValid =
     validation.isSuccess &&
     !validation.isFetching &&
+    !editing &&
     !importError &&
     !importing;
   return {
@@ -113,6 +117,7 @@ export function useCasePreparation() {
     caseFile,
     importError,
     importing,
+    editing,
     errorSummary,
     matrix,
     health,

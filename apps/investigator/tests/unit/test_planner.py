@@ -29,6 +29,7 @@ def test_independent_score_expectations_cover_smoothing_exploration_cost_and_fit
         version_affinity=0.0,
         novelty=1.0,
         normalized_cost=0.25,
+        boundary_value=0,
         utility=0.5875,
     )
     history = SimpleNamespace(
@@ -57,6 +58,79 @@ def test_independent_score_expectations_cover_smoothing_exploration_cost_and_fit
     )
     history.attempts, history.avg_cost_ms = 1, 90000.0
     assert factors(["CALL"], ["CALL"], history)["normalized_cost"] == 0.625
+
+
+def test_verified_boundary_value_outweighs_execution_timing_noise():
+    shared = dict(attempts=1, successes=1, feature_ids=["CALL", "MATCH", "YIELD"])
+    fast = SimpleNamespace(**shared, avg_cost_ms=0, semantic_contrast=False)
+    slow_boundary = SimpleNamespace(**shared, avg_cost_ms=60000, semantic_contrast=True)
+    features = shared["feature_ids"]
+    fast_score = factors(features, features, fast, 1)
+    boundary_score = factors(features, features, slow_boundary, 1)
+    assert boundary_score["boundary_value"] == 1
+    assert boundary_score["utility"] > fast_score["utility"]
+    slow_boundary.semantic_contrast = False
+    assert (
+        factors(features, features, slow_boundary, 1)["utility"] < fast_score["utility"]
+    )
+
+
+def test_legacy_plan_replay_preserves_the_original_immutable_bytes(tmp_path):
+    from faultglass.models import RunLimits
+    from faultglass.planner_models import Decision
+    from faultglass.planning_artifacts import PlanningStore
+    from faultglass.probe_service import load_plan
+
+    job_id = str(uuid4())
+    (tmp_path / job_id).mkdir(mode=0o700)
+    store = PlanningStore(tmp_path, job_id)
+    source = snapshot()
+    case = read_case(
+        (Path(__file__).parents[1] / "fixtures/call-yield.faultglass.json").read_bytes()
+    )
+    ranked, rejected = rank_candidates(
+        case,
+        source,
+        lambda definition, output: store.put(
+            definition.type.lower() + ".json", encode(output.model_dump())
+        ),
+    )
+    ref = store.put("source-snapshot.json", encode(source.model_dump()))
+    registry = digest([item.definition.model_dump() for item in source.catalog])
+    fields = {
+        "seed": job_id,
+        "manifest": "b" * 64,
+        "registry": registry,
+        "planner": "planner-v1",
+    }
+    plan = Decision(
+        selection_id=digest(fields),
+        investigation_id=job_id,
+        planner_version="planner-v1",
+        registry_sha256=registry,
+        seed_case_id=case_identity(case)[0],
+        fingerprint_id="a" * 64,
+        seed_manifest_sha256="b" * 64,
+        scope=source.scope,
+        created_at=NOW,
+        novel=True,
+        candidates=ranked,
+        rejections=rejected,
+        selected_probe_id=ranked[0].probe_id,
+        outcome="selected",
+        limits=RunLimits(),
+        source_snapshot_ref=ref,
+        transformed_case_ref=ranked[0].transformed_case_ref,
+    )
+    legacy = plan.model_dump()
+    for candidate in legacy["candidates"]:
+        del candidate["boundary_value"]
+    raw = encode(legacy)
+    store.put("plan.json", raw)
+    restored, _, refs = load_plan(None, store)
+    assert encode(restored.model_dump()) != raw
+    assert store.get("plan.json") == raw
+    assert load_plan(None, store)[2] == refs
 
 
 @pytest.mark.parametrize(

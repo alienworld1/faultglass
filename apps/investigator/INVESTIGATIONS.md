@@ -28,7 +28,7 @@ In the worker terminal only, load your trusted root environment file without dis
 set -a
 . ../../.env
 set +a
-export FAULTGLASS_GEMINI_MODEL=gemini-2.5-flash
+export FAULTGLASS_GEMINI_MODEL=gemini-2.5-flash-lite
 export FAULTGLASS_INVESTIGATION_MODE=agent
 python -m faultglass.worker
 ```
@@ -70,6 +70,7 @@ Do not delete context volumes, edit receipts, or regenerate missing evidence. Mi
 
 ## API and limits
 
+- `GET /api/investigations`: ten most recently updated saved investigations, with graph-bound snapshot summaries and verified classification counts when available. This read never starts work or exposes case contents.
 - `POST /api/cases/validate`: canonical validation only, body `{caseFile,pairId}`.
 - `POST /api/investigations`: the same body and UUID `Idempotency-Key`; returns 202 plus `Location`.
 - `GET /api/investigations/admission/<key>`: read-only admission recovery.

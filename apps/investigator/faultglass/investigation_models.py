@@ -361,6 +361,26 @@ class RuntimeRecord(Contract):
         return self
 
 
+class InvestigationSummary(Contract):
+    id: str
+    title: str = Field(min_length=1, max_length=160)
+    status: RuntimeStatus
+    baseline: str = Field(max_length=160)
+    target: str = Field(max_length=160)
+    updatedAt: str
+    plannedExperiments: int = Field(ge=0, le=4)
+    verifiedDifferences: int | None = Field(default=None, ge=0, le=5)
+    sourceBehavior: str | None = Field(default=None, max_length=40)
+    familyState: Literal["matched", "provisional", "unresolved"] | None
+
+    _id = field_validator("id")(evidence_id)
+    _time = field_validator("updatedAt")(validate_timestamp)
+
+
+class RecentInvestigations(Contract):
+    items: list[InvestigationSummary] = Field(max_length=10)
+
+
 class EvidenceItem(Contract):
     sequence: int = Field(ge=0, le=4)
     kind: Literal["seed", "selection", "result"]

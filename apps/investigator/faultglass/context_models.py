@@ -335,6 +335,7 @@ class HistoryCandidate(Contract):
     attempts: Annotated[int, Field(ge=0)]
     successes: Annotated[int, Field(ge=0)]
     avg_cost_ms: Annotated[float, Field(ge=0)]
+    semantic_contrast: bool = False
     version_scope: VersionScope
     exact_pair_match: bool
     supporting_episodes: list[InvestigationContext] = Field(min_length=1, max_length=5)
@@ -345,6 +346,7 @@ class HistoryCandidate(Contract):
     def statistics(self):
         if (
             self.successes > self.attempts
+            or (self.semantic_contrast and self.successes == 0)
             or self.feature_ids != sorted(set(self.feature_ids))
             or self.feature_overlap != len(self.feature_ids)
             or any(f not in FEATURE_IDS for f in self.feature_ids)

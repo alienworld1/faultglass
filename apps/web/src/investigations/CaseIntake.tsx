@@ -4,6 +4,7 @@ import { RequestError } from "./api";
 import { useAdmission } from "./useAdmission";
 import { useCasePreparation } from "./useCasePreparation";
 import EngineIdentity from "./EngineIdentity";
+import RecentInvestigations from "./RecentInvestigations";
 
 export default function CaseIntake() {
   const admission = useAdmission();
@@ -11,6 +12,7 @@ export default function CaseIntake() {
     pairId,
     caseFile,
     importError,
+    editing,
     errorSummary,
     matrix,
     health,
@@ -27,11 +29,15 @@ export default function CaseIntake() {
     : admission.uncertain
       ? "Checking your previous start. Retry connection if it remains unavailable."
       : !ready
-        ? "Investigations are temporarily unavailable."
+        ? !health.data?.contextReady
+          ? "Investigation memory is unavailable. Retry connection in a moment."
+          : !health.data.workerReady
+            ? "The investigator is offline. Start the worker, then retry connection."
+            : "The comparison engines are unavailable. Retry connection in a moment."
         : !pair?.available
           ? "Choose an available engine pair."
           : !currentValid
-            ? validation.isFetching
+            ? editing || validation.isFetching
               ? "Validating case…"
               : "Validate this case before starting."
             : "Ready to investigate.";
@@ -43,13 +49,19 @@ export default function CaseIntake() {
           Case preparation
         </p>
         <h1 className="text-2xl font-semibold">
-          Choose a case and compare two FalkorDB engines.
+          One repro in. The whole fault family out.
         </h1>
+        <p className="mt-4 text-base leading-relaxed">
+          Start with a failing Cypher query. Follow graph-guided experiments,
+          inspect a smaller verified reproducer, and download regression
+          coverage.
+        </p>
         <p className="mt-4 text-sm text-muted">
           Investigations and their evidence are visible in this workspace. Use
           public or synthetic cases.
         </p>
       </div>
+      <RecentInvestigations />
       <div className="grid min-w-0 border-y border-line lg:grid-cols-[minmax(240px,1fr)_minmax(0,3fr)]">
         <aside
           className="min-w-0 border-b border-line py-6 lg:border-r lg:border-b-0 lg:pr-6"
@@ -60,7 +72,8 @@ export default function CaseIntake() {
             <button
               key={value.title}
               type="button"
-              className="mt-3 min-h-11 w-full border-l-2 border-line px-3 py-3 text-left hover:bg-secondary"
+              aria-pressed={caseFile === JSON.stringify(value, null, 2)}
+              className="mt-3 min-h-11 w-full border-l-2 border-line px-3 py-3 text-left hover:bg-secondary aria-pressed:border-accent aria-pressed:bg-secondary aria-pressed:font-semibold"
               onClick={() => changeDraft(JSON.stringify(value, null, 2))}
             >
               {value.title}
@@ -102,7 +115,8 @@ export default function CaseIntake() {
           </select>
           <p className="mt-4 text-sm text-muted">
             The same setup and query run in fresh, isolated engines within a
-            fixed investigation budget.
+            15-minute investigation limit. You can close this tab and return
+            using the investigation’s saved URL.
           </p>
         </aside>
         <div className="min-w-0 py-6 lg:pl-8">
@@ -110,8 +124,8 @@ export default function CaseIntake() {
             Case · editable JSON
           </label>
           <p id="editor-help" className="mt-2 text-sm text-muted">
-            Edit setup, query, observation rules or an explicit expectation.
-            Your supplied content is preserved.
+            Choose a case to get started, or edit its setup and query below.
+            Changes are checked automatically after you pause typing.
           </p>
           <textarea
             id="case-editor"
@@ -187,11 +201,13 @@ export default function CaseIntake() {
           </p>
         ) : null}
         <p className="mb-4 text-sm text-muted">
-          {health.data?.agentMode === "deterministic_diagnostic"
-            ? "Interpretation is disabled for this diagnostic session."
-            : health.data && !health.data.agentReady
-              ? "Interpretation is unavailable. The saved agent outcome will explain any limits."
-              : "Approved public cases can use connected evidence to guide experiments."}
+          {!health.data?.workerReady
+            ? "Investigations run independently of your browser once the investigator is online."
+            : health.data?.agentMode === "deterministic_diagnostic"
+              ? "Interpretation is disabled for this diagnostic session."
+              : health.data && !health.data.agentReady
+                ? "Interpretation is unavailable. The saved agent outcome will explain any limits."
+                : "Approved public cases can use connected evidence to guide experiments."}
         </p>
         {admission.message ? (
           <p role="status" className="mb-4 text-sm">

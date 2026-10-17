@@ -850,6 +850,7 @@ export type Candidates1 =
   [] | [RankedCandidate] | [RankedCandidate, RankedCandidate];
 export type Attempts1 = number;
 export type AvgCostMs = number;
+export type BoundaryValue = number;
 export type ChosenHistoryKey = string | null;
 export type CostClass = "small" | "medium" | "large";
 export type DefinitionSha256 = string;
@@ -898,7 +899,7 @@ export type Rows1 = number;
 export type Startupseconds = number;
 export type Novel = boolean;
 export type Outcome = "selected" | "not_reproduced" | "unresolved";
-export type PlannerVersion = "planner-v1";
+export type PlannerVersion = "planner-v1" | "planner-v2";
 export type RegistrySha256 = string;
 export type Applicable1 = false;
 export type HistoryKey = string | null;
@@ -1223,6 +1224,86 @@ export type Targetid = string;
 /**
  * @maxItems 10
  */
+export type Items1 =
+  | []
+  | [InvestigationSummary]
+  | [InvestigationSummary, InvestigationSummary]
+  | [InvestigationSummary, InvestigationSummary, InvestigationSummary]
+  | [
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+    ]
+  | [
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+    ]
+  | [
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+    ]
+  | [
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+    ]
+  | [
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+    ]
+  | [
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+    ]
+  | [
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+      InvestigationSummary,
+    ];
+export type Baseline1 = string;
+export type Familystate = ("matched" | "provisional" | "unresolved") | null;
+export type Id8 = string;
+export type Plannedexperiments = number;
+export type Sourcebehavior = string | null;
+export type Target1 = string;
+export type Title2 = string;
+export type Updatedat2 = string;
+export type Verifieddifferences = number | null;
+/**
+ * @maxItems 10
+ */
 export type Attempts2 =
   | []
   | [ReductionAttemptView]
@@ -1365,7 +1446,7 @@ export type Originaltextsha256 = string;
 export type Setupindex = number | null;
 export type Start1 = number | null;
 export type Createdat4 = string;
-export type Id8 = string;
+export type Id9 = string;
 export type Ordinal = number;
 export type Parentcaseid = string;
 export type Phase = "query" | "fixture";
@@ -1412,7 +1493,7 @@ export type Nextcursor2 = number | null;
 export type Revision5 = number;
 export type Query4 = string;
 export type Bytes2 = number;
-export type Id9 = string;
+export type Id10 = string;
 export type Kind5 = string;
 export type Mediatype2 = string;
 export type Path2 = string;
@@ -1463,6 +1544,7 @@ export interface EvidenceContracts {
   evidence: EvidencePage;
   investigation: Snapshot;
   pair: EnginePair;
+  recentInvestigations: RecentInvestigations;
   reduction: ReductionPage;
   reductionSuggestion: ReductionSuggestion;
   report: RunReport;
@@ -1745,6 +1827,7 @@ export interface Decision {
 export interface RankedCandidate {
   attempts: Attempts1;
   avg_cost_ms: AvgCostMs;
+  boundary_value?: BoundaryValue;
   chosen_history_key: ChosenHistoryKey;
   cost_class: CostClass;
   definition_sha256: DefinitionSha256;
@@ -1963,6 +2046,21 @@ export interface EnginePair {
   label: Label1;
   targetId: Targetid;
 }
+export interface RecentInvestigations {
+  items: Items1;
+}
+export interface InvestigationSummary {
+  baseline: Baseline1;
+  familyState: Familystate;
+  id: Id8;
+  plannedExperiments: Plannedexperiments;
+  sourceBehavior?: Sourcebehavior;
+  status: Status1;
+  target: Target1;
+  title: Title2;
+  updatedAt: Updatedat2;
+  verifiedDifferences?: Verifieddifferences;
+}
 export interface ReductionPage {
   attempts: Attempts2;
   case: ReductionCaseView | null;
@@ -1988,7 +2086,7 @@ export interface ReductionAttempt {
   candidateRef: EvidenceReference;
   change: ReductionChange;
   createdAt: Createdat4;
-  id: Id8;
+  id: Id9;
   observedDivergence: Divergence | null;
   ordinal: Ordinal;
   parentCaseId: Parentcaseid;
@@ -2033,7 +2131,7 @@ export interface RunReport {
 }
 export interface ArtifactRef {
   bytes: Bytes2;
-  id: Id9;
+  id: Id10;
   kind: Kind5;
   mediaType: Mediatype2;
   path: Path2;

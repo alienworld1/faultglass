@@ -7,6 +7,7 @@ import type {
   ConclusionPage,
   Snapshot,
   EvidencePage,
+  RankedCandidate,
 } from "../contracts/evidence";
 import InvestigationConclusion from "./InvestigationConclusion";
 import AgentEvidence from "./AgentEvidence";
@@ -14,6 +15,7 @@ import HistoricalInfluence from "./HistoricalInfluence";
 import EvidenceDisclosure from "./EvidenceDisclosure";
 import ReductionLineage from "./ReductionLineage";
 import type { SavedReduction } from "./api";
+import GraphSelectionPath from "./GraphSelectionPath";
 
 const ref = {
   id: "case-ref",
@@ -35,6 +37,36 @@ function render(element: React.ReactNode) {
   return html;
 }
 describe("evidence outcome presentation", () => {
+  it("shows the saved graph path without inventing historical evidence on a cold start", () => {
+    const candidate = {
+      source: "structural",
+      chosen_history_key: null,
+      matched_feature_ids: ["CALL", "MATCH"],
+      probe_id: "INSERT_WITH_BEFORE_TERMINAL_MATCH:v1",
+      successes: 0,
+      attempts: 0,
+    } as RankedCandidate;
+    const cold = render(<GraphSelectionPath candidate={candidate} />);
+    expect(cold).toContain("USES_FEATURE");
+    expect(cold).toContain("TARGETS_FEATURE");
+    expect(cold).not.toContain("EFFECTIVE_FOR");
+    const learned = render(
+      <GraphSelectionPath
+        candidate={{
+          ...candidate,
+          source: "history",
+          chosen_history_key: 'family-id:{"baseline":"saved"}',
+          successes: 2,
+          attempts: 3,
+        }}
+      />,
+    );
+    expect(learned).toContain("INVOLVES_FEATURE");
+    expect(learned).toContain("EFFECTIVE_FOR");
+    expect(learned).toContain("family-id");
+    expect(learned).toContain("2 useful outcomes across 3 prior attempts");
+    expect(learned).not.toContain("TARGETS_FEATURE");
+  });
   it("preserves recorded input and paired evidence while a newly selected experiment is pending", () => {
     const observed = {
       engineVersionId: "saved-engine",

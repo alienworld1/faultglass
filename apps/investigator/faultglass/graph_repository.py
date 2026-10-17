@@ -510,9 +510,20 @@ class GraphRepository:
                         self.config.artifact_root, read_ref(stats["source_id"])
                     )
                 )
+                semantic_contrast = False
                 if "commitKey" in contribution:
+                    from .analysis_models import MemoryDelta
+
                     sources = self._memory_sources(
                         stats, probe["id"], family["id"], exclude_id
+                    )
+                    delta = MemoryDelta.model_validate(contribution)
+                    semantic_contrast = delta.investigationId != exclude_id and any(
+                        entry.probeId == probe["id"]
+                        and entry.familyId == family["id"]
+                        and entry.reason == "semantic_contrast"
+                        and entry.successIncrement == 1
+                        for entry in delta.entries
                     )
                 supporting = []
                 for episode_id, source_id, weight, edge_id in sources:
@@ -548,6 +559,7 @@ class GraphRepository:
                         attempts=stats["attempts"],
                         successes=stats["successes"],
                         avg_cost_ms=stats["avg_cost_ms"],
+                        semantic_contrast=semantic_contrast,
                         version_scope=version_scope,
                         exact_pair_match=scope is not None and version_scope == scope,
                         supporting_episodes=supporting,

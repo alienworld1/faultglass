@@ -118,6 +118,7 @@ class RankedCandidate(Contract):
     version_affinity: Factor
     novelty: Factor
     normalized_cost: Factor
+    boundary_value: Factor = 0
     utility: float
     rank: Annotated[int, Field(ge=1)]
     edit: SourceEdit
@@ -135,6 +136,7 @@ class RankedCandidate(Contract):
             + 0.20 * self.version_affinity
             + 0.10 * self.novelty
             - 0.05 * self.normalized_cost
+            + 0.10 * self.boundary_value
         )
         if (
             not self.target_feature_ids
@@ -145,6 +147,7 @@ class RankedCandidate(Contract):
             or self.eligibility.transformed_case_ref != self.transformed_case_ref
             or self.utility != expected
             or self.successes > self.attempts
+            or (self.boundary_value > 0 and self.source != "history")
             or (self.source == "history") != (self.chosen_history_key is not None)
         ):
             raise ValueError("Saved score inputs do not agree.")
@@ -155,7 +158,7 @@ class Decision(Contract):
     selection_id: Hash
     investigation_id: str
     sequence: Annotated[int, Field(ge=1, le=4)] = 1
-    planner_version: Literal["planner-v1"] = "planner-v1"
+    planner_version: Literal["planner-v1", "planner-v2"] = "planner-v2"
     registry_sha256: Hash
     seed_case_id: Hash
     fingerprint_id: Hash
@@ -178,6 +181,12 @@ class Decision(Contract):
 
     @model_validator(mode="after")
     def selected(self):
+        if self.planner_version == "planner-v1" and any(
+            candidate.boundary_value for candidate in self.candidates
+        ):
+            raise ValueError(
+                "The saved planner version does not support boundary value."
+            )
         owner = self.investigation_id + "/planning"
         if self.source_snapshot_ref.owner.endswith(f"/planning/{self.sequence}"):
             owner += f"/{self.sequence}"

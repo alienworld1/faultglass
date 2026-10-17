@@ -55,7 +55,7 @@ export default function ReductionLineage({
         </p>
         {summary.stopReason && summary.acceptedCount === 0 ? (
           <p className="mt-3 text-sm">
-            No smaller case was verified. The original case is preserved.
+            No smaller case was verified. The reduction source is preserved.
           </p>
         ) : null}
         <p className="mt-4 text-sm">

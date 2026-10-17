@@ -6,7 +6,61 @@ A failing query rarely explains its semantic neighborhood. FaultGlass connects l
 
 ## Run locally
 
-Use a persistent Linux/amd64 host with Python 3.12+, Docker Engine and Compose v2, systemd with cgroup v2/journal namespaces, and Nginx. Frontend tooling pins Node 24.19.0 and pnpm 11.25.0. Acquire both approved images explicitly and provision a worker-only Gemini key with an available model. Complete agent investigations require the key; standalone comparison does not.
+Use Linux/amd64 with Python 3.12+, Docker Engine, Compose v2 and pnpm 11.25.0. Frontend tooling prepares its pinned Node 24.19.0 runtime. Your account needs local Docker access. Keep at least 2 GiB free for evidence in addition to the images and dependencies. Complete AI investigations require a Gemini API key with access to a supported model; standalone comparison does not.
+
+From the repository root, install dependencies and acquire the two approved images:
+
+```sh
+pnpm --dir apps/web install --frozen-lockfile
+python3 -m venv apps/investigator/.venv
+cd apps/investigator
+.venv/bin/python -m pip install -r requirements.lock
+docker pull --platform linux/amd64 falkordb/falkordb@sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b
+docker pull --platform linux/amd64 ghcr.io/falkordb/falkordb-server@sha256:9367c99cdc338d752d6976653c5e68d227b5b6b03ab4938d6eaeb3c4e1607e24
+cd ../..
+docker compose up -d --wait context
+```
+
+Create a private, git-ignored `.env` at the repository root containing your `GEMINI_API_KEY`. Load it only in the worker terminal. Then open three terminals, each starting at the repository root.
+
+**API:**
+
+```sh
+cd apps/investigator
+. .venv/bin/activate
+export FAULTGLASS_ARTIFACT_ROOT="$PWD/evidence"
+export FAULTGLASS_STORAGE_MODE=monitored_local
+export FAULTGLASS_ALLOWED_ORIGINS=http://127.0.0.1:5173
+python -m faultglass.context bootstrap
+uvicorn faultglass.api:app --host 127.0.0.1 --port 8000
+```
+
+**Worker:**
+
+```sh
+cd apps/investigator
+. .venv/bin/activate
+export FAULTGLASS_ARTIFACT_ROOT="$PWD/evidence"
+export FAULTGLASS_STORAGE_MODE=monitored_local
+set -a
+. ../../.env
+set +a
+export FAULTGLASS_GEMINI_MODEL=gemini-2.5-flash-lite
+export FAULTGLASS_INVESTIGATION_MODE=agent
+python -m faultglass.worker
+```
+
+**Browser app:**
+
+```sh
+pnpm --dir apps/web dev --host 127.0.0.1
+```
+
+Open [the local workspace](http://127.0.0.1:5173). Wait for **Ready to investigate**, choose the first built-in case, and follow the [walkthrough](#walkthrough). The selected model is recorded in every investigation; access and quota depend on your key. A complete built-in investigation uses ten model calls. Check your remaining daily allowance before recording a live run; saved investigations can be reviewed without additional model calls. Existing history is preserved across restarts. Keep all services on loopback: this local path uses monitored storage and is not configured for public execution.
+
+### Persistent service installation
+
+For a persistent installation, also use systemd with cgroup v2/journal namespaces and Nginx.
 
 Follow [setup and operations](deploy/SETUP.md) once to prepare the service account, locked dependencies, bounded persistent filesystems and private environment files. Then:
 
@@ -78,7 +132,7 @@ Relationships carry stable identities and source provenance. Bootstrap installs 
 ## Queries and algorithms
 
 - [History](apps/investigator/faultglass/queries/history.cypher), [paths](apps/investigator/faultglass/queries/history-paths.cypher) and [supporting provenance](apps/investigator/faultglass/queries/history-provenance.cypher) connect matching features to compatible classified episodes and effective probes. Ordered engine scope, comparator version, disabled probes, superseded families and current-episode exclusion constrain usable history. Missing supporting evidence fails closed.
-- [Selection](apps/investigator/faultglass/queries/probe-selection.cypher) saves the action before execution; [observations](apps/investigator/faultglass/queries/probe-observation.cypher) attach actual paired evidence. [Planner scoring](apps/investigator/faultglass/planner.py) uses `0.35 × feature fit + 0.30 × historical yield + 0.20 × version affinity + 0.10 × novelty − 0.05 × normalized cost`. It chooses the best compatible row without summing overlapping paths, breaks ties deterministically and rejects duplicate transformed cases. [Experiments](apps/investigator/PROBES.md) explains every factor.
+- [Selection](apps/investigator/faultglass/queries/probe-selection.cypher) saves the action before execution; [observations](apps/investigator/faultglass/queries/probe-observation.cypher) attach actual paired evidence. [Planner scoring](apps/investigator/faultglass/planner.py) uses `0.35 × feature fit + 0.30 × historical yield + 0.20 × version affinity + 0.10 × novelty − 0.05 × normalized cost + 0.10 × verified boundary value`. It chooses the best compatible row without summing overlapping paths, breaks ties deterministically and rejects duplicate transformed cases. [Experiments](apps/investigator/PROBES.md) explains every factor.
 - [Semantic mutations](apps/investigator/faultglass/probe_transforms.py) replace terminal MATCH with OPTIONAL MATCH or insert a binding-preserving WITH in a conservative procedure-call grammar. Unsupported syntax remains unresolved; the model cannot install arbitrary transformations.
 - [Normalization](apps/investigator/faultglass/normalize.py) preserves types, sorts map keys/labels and excludes engine-local IDs. [Comparison](apps/investigator/faultglass/comparison.py) preserves ordered rows or compares unordered multisets with duplicates. Signatures bind observations, policy, comparator and engine identities. Explicit oracle assessment remains separate.
 - [Reduction proposals](apps/investigator/faultglass/reduction_candidates.py) use supported query cuts and whole setup deletions. The [reduction service](apps/investigator/faultglass/reduction_service.py) repeats the source on fresh engines, then retains strictly smaller candidates preserving frozen fields and the exact divergence. Rejections stay inspectable. Bounded search implies neither universal minimality nor independent stability of every descendant.
@@ -91,6 +145,7 @@ Relationships carry stable identities and source provenance. Bootstrap installs 
 3. Review the repeated reduction source, accepted lineage and unsuccessful attempts. The current verified case remains authoritative while a candidate is pending.
 4. Read the conclusion/limitations. Download case, regression scaffold and report. The scaffold needs explicit repository-harness wiring; a crash is not desired behavior.
 5. Reload the URL, disconnect/reconnect, and reopen after an API restart. Reads reconcile saved evidence without submitting work again.
+   You can also reopen either run from **Recent investigations** on the landing screen.
 6. Start **Trailing MATCH with two node labels** as a distinct investigation. Inspect historical counterfactual and executed order. A score increase alone does not prove changed action.
 
 The explicit [live acceptance check](apps/investigator/INVESTIGATIONS.md#verification) requires a complete source Explorer loop and a fresh related changed action, execution, exports and memory. Saved receipt audits are labeled as audits, never fresh runs.

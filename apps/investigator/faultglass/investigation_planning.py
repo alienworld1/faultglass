@@ -5,7 +5,7 @@ from .context_models import EvidenceReference
 from .context_phase import build_phase
 from .jsonio import digest, encode
 from .models import RunLimits
-from .planner import rank_candidates
+from .planner import PLANNER_VERSION, rank_candidates
 from .planner_models import Decision, SourceSnapshot
 from .planning_artifacts import PlanningStore
 from .probe_graph import catalog, now
@@ -55,7 +55,7 @@ def plan_next(repository, record):
                 "seed": job_id,
                 "manifest": manifest,
                 "registry": REGISTRY_SHA256,
-                "planner": "planner-v1",
+                "planner": PLANNER_VERSION,
                 "sequence": sequence,
             }
         ),
