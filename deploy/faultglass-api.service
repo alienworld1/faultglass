@@ -1,0 +1,27 @@
+[Unit]
+Description=FaultGlass private API
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=exec
+User=faultglass
+Group=faultglass
+SupplementaryGroups=docker
+WorkingDirectory=/opt/faultglass/apps/investigator
+EnvironmentFile=/etc/faultglass/runtime.env
+ExecStartPre=/opt/faultglass/apps/investigator/.venv/bin/python -m faultglass.preflight
+ExecStart=/opt/faultglass/apps/investigator/.venv/bin/uvicorn faultglass.api:app --host 127.0.0.1 --port 8000 --workers 1 --no-proxy-headers --no-access-log
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+MemoryMax=1G
+MemorySwapMax=0
+CPUQuota=100%
+TasksMax=128
+LimitNOFILE=1024
+LogNamespace=faultglass-api
+
+[Install]
+WantedBy=multi-user.target

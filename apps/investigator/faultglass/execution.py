@@ -127,7 +127,6 @@ def run_case(
                         "The experiment budget was exhausted.",
                     )
                 runner = DockerRunner(client, run_id)
-                print("Case: " + case.title, file=sys.stderr)
                 print("Running baseline and target…", file=sys.stderr)
                 try:
                     pair = runner.execute_pair(case, *engines, limits)

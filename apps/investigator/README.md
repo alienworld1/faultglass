@@ -4,7 +4,7 @@ Compare the same reproducible Cypher case across two isolated FalkorDB engines. 
 
 ## Local setup
 
-Verified on Linux/amd64 with Python 3.12.3, Node 24.19.0, pnpm 11.25.0, and Docker Engine 29.9.0. `pnpm install` prepares the pinned Node runtime for frontend commands. The trusted investigator needs local Docker API access. Tested engines have no network, published ports, host mounts, socket, or inherited application credentials. An LLM key is not required. Execution can run independently of investigation memory. See [persistent investigation memory](CONTEXT.md) for the separate context service, commands, graph model, and recovery.
+Verified on Linux/amd64 with Python 3.12.3, Node 24.19.0, pnpm 11.25.0, and Docker Engine 29.9.0. `pnpm install` prepares the pinned Node runtime for frontend commands. The trusted investigator needs local Docker API access. Tested engines have no network, published ports, host mounts, socket, or inherited application credentials. Standalone comparison does not require an LLM key. The complete agent investigation requires worker-only Gemini configuration; follow the root setup for that workflow. Execution can run independently of investigation memory. See [persistent investigation memory](CONTEXT.md) for the separate context service, commands, graph model, and recovery.
 
 From the repository root:
 

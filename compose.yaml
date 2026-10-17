@@ -2,15 +2,24 @@ services:
   context:
     image: falkordb/falkordb@sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b
     platform: linux/amd64
+    cpus: 1
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 128
+    logging:
+      driver: local
+      options:
+        max-size: "64m"
+        max-file: "4"
     ports:
       - "127.0.0.1:6380:6379"
     volumes:
-      - context-data:/data
+      - ${FAULTGLASS_CONTEXT_DATA:-context-data}:/data
     environment:
       BROWSER: "0"
       FALKORDB_DATA_PATH: /data
       FALKORDB_ARGS: "TIMEOUT_MAX 10000 TIMEOUT_DEFAULT 2000"
-      REDIS_ARGS: "--appendonly yes --appendfsync always --save 60 1"
+      REDIS_ARGS: "--appendonly yes --appendfsync always --save 60 1 --maxmemory 768mb --maxmemory-policy noeviction"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

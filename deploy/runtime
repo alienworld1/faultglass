@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /opt/faultglass
+export FAULTGLASS_CONTEXT_DATA=/var/lib/faultglass/context
+case "${1:-}" in
+  up)
+    for spec in 'evidence 8589934592' 'context 4294967296'; do
+      read -r volume maximum <<< "$spec"
+      path="/var/lib/faultglass/$volume"
+      mountpoint -q "$path" || { echo "Mount the bounded $volume filesystem first." >&2; exit 1; }
+      size=$(stat -f -c '%S %b' "$path")
+      read -r block blocks <<< "$size"
+      (( block * blocks <= maximum )) || { echo "The $volume filesystem exceeds its declared allocation." >&2; exit 1; }
+    done
+    docker compose up -d --wait --pull never context
+    systemctl start faultglass-worker
+    systemctl start faultglass-api
+    systemctl start faultglass-ingress
+    ;;
+  status)
+    docker compose ps
+    systemctl --no-pager status faultglass-{api,worker,ingress}
+    ;;
+  stop)
+    systemctl stop faultglass-ingress faultglass-api faultglass-worker
+    docker compose stop context
+    ;;
+  logs)
+    service="${2:-worker}"
+    case "$service" in api|worker|ingress) ;; *) echo 'Choose api, worker, or ingress.' >&2; exit 2;; esac
+    journalctl --namespace="faultglass-$service" -u "faultglass-$service" -n 100 --no-pager
+    ;;
+  *) echo 'Usage: deploy/runtime {up|status|stop|logs [api|worker|ingress]}' >&2; exit 2 ;;
+esac

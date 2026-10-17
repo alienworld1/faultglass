@@ -1,0 +1,23 @@
+[Unit]
+Description=FaultGlass same-origin ingress
+After=faultglass-api.service
+Requires=faultglass-api.service
+
+[Service]
+Type=exec
+ExecStartPre=/usr/sbin/nginx -t -c /opt/faultglass/deploy/nginx.conf
+ExecStart=/usr/sbin/nginx -c /opt/faultglass/deploy/nginx.conf -g "daemon off;"
+ExecReload=/bin/kill -s HUP $MAINPID
+KillSignal=SIGQUIT
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+MemoryMax=256M
+MemorySwapMax=0
+CPUQuota=100%
+TasksMax=64
+LimitNOFILE=4096
+LogNamespace=faultglass-ingress
+
+[Install]
+WantedBy=multi-user.target

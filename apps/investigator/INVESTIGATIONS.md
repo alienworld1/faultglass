@@ -89,21 +89,9 @@ FalkorDB `Investigation` nodes contain typed runtime versions, revisions, admiss
 
 ## Same-origin hosting
 
-Serve the built Vite app and API under one trusted origin. Deep links must fall back to `index.html`; `/api` must route to the persistent API without SPA fallback. Disable proxy buffering for SSE. For example, inside an existing trusted Nginx server configuration:
+Use the complete [same-origin installation and resource policy](../../deploy/SETUP.md) and [checked-in Nginx configuration](../../deploy/nginx.conf). They preserve SPA deep links, keep `/api` out of HTML fallback, disable SSE buffering/cache, enforce exact streamed body limits and slow-body deadlines, bound command/source pressure, and strip visitor forwarding headers.
 
-```nginx
-location /api/ {
-    proxy_pass http://127.0.0.1:8000;
-    proxy_buffering off;
-    proxy_cache off;
-    proxy_read_timeout 60s;
-}
-location / {
-    try_files $uri $uri/ /index.html;
-}
-```
-
-Set `FAULTGLASS_ALLOWED_ORIGINS` to the explicit comma-separated trusted browser origins on hosted installations. Local defaults allow localhost and 127.0.0.1 on ports 5173 and 8000. There is no wildcard CORS or forwarded-header trust. Keep backend ports private. This shared workspace has no authentication or private-data boundary.
+Set `FAULTGLASS_ALLOWED_ORIGINS` to explicit trusted origins. Development defaults allow localhost/127.0.0.1 on ports 5173 and 8000; the static installation explicitly uses loopback 8080 until real TLS/DNS are configured. Uvicorn ignores proxy headers; API admission accounting is conservatively shared across ingress requests. Keep backend ports private. This workspace has no authentication or private-data boundary.
 
 ## Verification
 
