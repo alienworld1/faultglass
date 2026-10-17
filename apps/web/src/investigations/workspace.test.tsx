@@ -90,6 +90,34 @@ afterEach(async () => {
 });
 
 describe("case admission", () => {
+  it("waits after rate pressure and keeps the same start identity", async () => {
+    const keys: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === "/api/investigations") {
+          keys.push(new Headers(init?.headers).get("Idempotency-Key") ?? "");
+          return new Response("busy", {
+            status: 429,
+            headers: { "Retry-After": "1" },
+          });
+        }
+        return intakeFetch(url);
+      }),
+    );
+    await mount(<CaseIntake />);
+    await act(async () => button("Start investigation").click());
+    await flush();
+    expect(button("Start investigation").disabled).toBe(true);
+    expect(container.textContent).not.toContain("Saving investigation…");
+    const saved = sessionStorage.getItem("faultglass.admission.v1");
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 1050)));
+    await act(async () => button("Start investigation").click());
+    await flush();
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+    expect(sessionStorage.getItem("faultglass.admission.v1")).toBe(saved);
+  });
   it("cannot enable Start from an obsolete validation response", async () => {
     let resolveOld: (value: Response) => void = () => {};
     let resolveCurrent: (value: Response) => void = () => {};

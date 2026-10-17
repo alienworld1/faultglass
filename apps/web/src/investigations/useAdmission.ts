@@ -15,6 +15,15 @@ export function useAdmission() {
   const [saved, setSaved] = useState(savedStart);
   const [uncertain, setUncertain] = useState(Boolean(saved));
   const [message, setMessage] = useState("");
+  const [retryAt, setRetryAt] = useState(0);
+  useEffect(() => {
+    if (!retryAt) return;
+    const timer = setTimeout(
+      () => setRetryAt(0),
+      Math.max(0, retryAt - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [retryAt]);
   const locked = useRef(false);
   const start = useMutation({
     mutationFn: async ({
@@ -56,10 +65,12 @@ export function useAdmission() {
     retry: false,
     onError: (error) => {
       setMessage(error.message);
+      if (error instanceof RequestError && error.status === 429)
+        setRetryAt(Date.now() + (error.retryAfterMs || 10000));
       if (
         !savedStart() ||
         (error instanceof RequestError &&
-          [403, 413, 422, 429, 503].includes(error.status))
+          [403, 408, 413, 422, 429, 503].includes(error.status))
       )
         setUncertain(false);
     },
@@ -102,6 +113,7 @@ export function useAdmission() {
   }, [recovery.data, navigate]);
   return {
     pending: start.isPending,
+    coolingDown: Boolean(retryAt),
     uncertain,
     message,
     hasRecovery: Boolean(saved),
@@ -109,7 +121,7 @@ export function useAdmission() {
       if (saved) void recovery.refetch();
     },
     submit: (caseFile: string, pairId: string) => {
-      if (locked.current || uncertain) return;
+      if (locked.current || uncertain || retryAt > Date.now()) return;
       locked.current = true;
       start.mutate({ caseFile, pairId });
     },

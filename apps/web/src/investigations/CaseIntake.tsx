@@ -206,6 +206,7 @@ export default function CaseIntake() {
             !currentValid ||
             !pair?.available ||
             admission.pending ||
+            admission.coolingDown ||
             admission.uncertain
           }
           onClick={() => admission.submit(caseFile, pairId)}

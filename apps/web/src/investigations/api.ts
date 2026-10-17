@@ -9,16 +9,19 @@ export class RequestError extends Error {
   status: number;
   fields: { path: string; message: string }[];
   code: string;
+  retryAfterMs: number;
   constructor(
     message: string,
     status: number,
     fields: { path: string; message: string }[] = [],
     code = "",
+    retryAfterMs = 0,
   ) {
     super(message);
     this.status = status;
     this.fields = fields;
     this.code = code;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -27,18 +30,40 @@ export async function request<T>(
   options?: RequestInit,
 ): Promise<T> {
   const response = await fetch(url, options);
+  const retryHeader = response.headers.get("Retry-After");
+  const retryAfterMs = retryHeader
+    ? /^\d+$/.test(retryHeader)
+      ? Number(retryHeader) * 1000
+      : Math.max(0, Date.parse(retryHeader) - Date.now())
+    : 0;
+  const retryDelay = Number.isFinite(retryAfterMs) ? retryAfterMs : 0;
+  const fallback =
+    response.status === 429
+      ? "The workspace is busy. Try again shortly."
+      : response.status === 413
+        ? "Choose a case file smaller than 256 KiB."
+        : response.status === 403
+          ? "This page cannot start or change investigations."
+          : response.status === 408
+            ? "The request took too long. Try again shortly."
+            : "Investigations are temporarily unavailable. Retry connection.";
   let body;
   try {
     body = await response.json();
   } catch {
     throw new RequestError(
-      "We couldn’t read this evidence. Retry connection.",
+      response.ok
+        ? "We couldn’t read this evidence. Retry connection."
+        : fallback,
       response.ok ? 409 : response.status,
+      [],
+      "",
+      retryDelay,
     );
   }
   if (!response.ok)
     throw new RequestError(
-      body?.error?.message ?? "We couldn’t load this investigation.",
+      body?.error?.message ?? fallback,
       response.status,
       Array.isArray(body?.error?.fields)
         ? body.error.fields.filter(
@@ -48,6 +73,7 @@ export async function request<T>(
           )
         : [],
       body?.error?.code ?? "",
+      retryDelay,
     );
   return body as T;
 }
