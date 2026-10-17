@@ -12,7 +12,7 @@ export default function AgentEvidence({
   if (!agent) return null;
   return (
     <div className="border-t border-line py-6 text-interpretation">
-      <h4 className="font-semibold">AI investigation</h4>
+      <h3 className="font-semibold">AI investigation</h3>
       <p className="mt-3 text-sm text-muted">
         {agent.mode === "deterministic_diagnostic"
           ? "AI investigation is disabled for this diagnostic session."

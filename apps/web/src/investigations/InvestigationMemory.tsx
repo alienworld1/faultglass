@@ -13,7 +13,7 @@ export default function InvestigationMemory({
 }) {
   return (
     <div className="border-t border-line py-6">
-      <h4 className="font-semibold">
+      <h3 className="font-semibold">
         {memory?.state === "recorded"
           ? "Investigation memory saved"
           : memory?.state === "ineligible"
@@ -25,7 +25,7 @@ export default function InvestigationMemory({
               : finished
                 ? "No saved memory receipt is available."
                 : "Saving investigation memory…"}
-      </h4>
+      </h3>
       {memory?.reason ? (
         <p className="mt-3 text-sm text-muted">{memory.reason}</p>
       ) : null}

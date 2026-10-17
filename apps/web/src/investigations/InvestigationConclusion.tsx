@@ -44,9 +44,9 @@ export default function InvestigationConclusion({
               ? "The difference is verified, but its family remains unresolved."
               : "This grouping is supported by the recorded behavior. Its underlying cause is not confirmed."}
           </p>
-          <h4 className="mt-5 text-xs font-semibold uppercase tracking-wider">
+          <h3 className="mt-5 text-xs font-semibold uppercase tracking-wider">
             Observed
-          </h4>
+          </h3>
           {conclusion.observed.map((fact) => (
             <p key={fact} className="mt-2 text-sm">
               {fact}

@@ -35,6 +35,7 @@ export default function ReductionLineage({
       aria-labelledby="reduction-heading"
       className="min-w-0 border-b border-line"
     >
+      <h2 className="sr-only">Case reduction</h2>
       <div className="border-b border-line p-4 sm:p-6">
         <h3 id="reduction-heading" className="font-semibold">
           Evidence-preserving reduction

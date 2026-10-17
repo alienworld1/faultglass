@@ -88,6 +88,7 @@ export default function InvestigationPage({ id }: { id: string }) {
             >
               New investigation
             </Link>
+            <h2 className="sr-only">Engine pair</h2>
             <div className="grid w-full min-w-0 gap-4 sm:grid-cols-2">
               {snapshot.engines.map((engine, index) => (
                 <EngineIdentity
@@ -99,9 +100,9 @@ export default function InvestigationPage({ id }: { id: string }) {
             </div>
           </div>
           <div className="border-b border-line py-6">
-            <h3 className="text-xs uppercase tracking-wider text-muted">
+            <h2 className="text-xs uppercase tracking-wider text-muted">
               Current action
-            </h3>
+            </h2>
             <p
               className="mt-3 min-h-12 text-lg"
               aria-live="polite"

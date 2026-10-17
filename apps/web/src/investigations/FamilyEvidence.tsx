@@ -13,18 +13,18 @@ export default function FamilyEvidence({
         Family {candidate.familyId} · {candidate.familyStatus} ·{" "}
         {candidate.compatible ? "Compatible scope" : "Incompatible scope"}
       </summary>
-      <h5 className="mt-2 text-xs uppercase tracking-wider text-muted">
+      <h4 className="mt-2 text-xs uppercase tracking-wider text-muted">
         Summary
-      </h5>
+      </h4>
       <p className="mt-2 text-sm">
         {candidate.eligible
           ? "Eligible behavioral candidate"
           : "Candidate excluded from matching"}{" "}
         · score {candidate.score.toFixed(4)}. This score is not a probability.
       </p>
-      <h5 className="mt-5 text-xs uppercase tracking-wider text-evidence">
+      <h4 className="mt-5 text-xs uppercase tracking-wider text-evidence">
         Evidence
-      </h5>
+      </h4>
       <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
         {Object.entries({
           "Feature contribution": candidate.feature,
