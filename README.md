@@ -1,29 +1,73 @@
 # FaultGlass
 
-Investigate a reproducible Cypher difference across immutable FalkorDB engines. Follow graph-selected experiments, retain a smaller verified case, download regression artifacts, and inspect how verified history changes a later decision.
+FaultGlass investigates reproducible Cypher differences between two FalkorDB engines. It runs the same case in isolated containers, tests nearby query forms, reduces cases that preserve the difference, and exports the evidence with a regression-test scaffold.
 
-A failing query rarely explains its semantic neighborhood. FaultGlass connects language features, experiments, runs, behavioral families and prior investigations in FalkorDB so the next action has inspectable provenance. The built-in trailing-`MATCH` case reproduces a historical baseline error versus target crash. A baseline is not an oracle; disagreement and a behavioral family do not establish a source-code cause.
+The investigation history is a FalkorDB graph connecting language features, experiments, engine versions, and observed behavior. Later investigations use verified history to rank experiments, with the supporting graph paths available for inspection. Gemini requests bounded investigation tools and provides cited interpretations; deterministic code controls execution, comparison, and publication.
+
+The current engine pair is FalkorDB C 4.22.0 and Rust commit `b033aec`, pinned by image digest. The built-in case, `CALL db.labels() YIELD label MATCH (n)`, produces a semantic error on the baseline and a crash on the target. These are historical engine snapshots. Disagreement does not establish which engine is correct, and a behavioral grouping does not establish a source-code cause.
 
 ## Run locally
 
-Use Linux/amd64 with Python 3.12+, Docker Engine, Compose v2 and pnpm 11.25.0. Frontend tooling prepares its pinned Node 24.19.0 runtime. Your account needs local Docker access. Keep at least 2 GiB free for evidence in addition to the images and dependencies. Complete AI investigations require a Gemini API key with access to a supported model; standalone comparison does not.
+Requirements: Python 3.12+, Docker Engine, and Docker Compose v2. The browser app uses pnpm 11.25.0; its package configuration prepares Node 24.19.0. Your account must have Docker access. Keep at least 2 GiB free for evidence in addition to dependencies and images.
 
-From the repository root, install dependencies and acquire the two approved images:
+### Install the investigator and engines
+
+From the repository root:
+
+```sh
+python3 -m venv apps/investigator/.venv
+cd apps/investigator
+. .venv/bin/activate
+python -m pip install -r requirements.lock
+export FAULTGLASS_ARTIFACT_ROOT="$PWD/evidence"
+
+docker pull --platform linux/amd64 falkordb/falkordb@sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b
+docker pull --platform linux/amd64 ghcr.io/falkordb/falkordb-server@sha256:9367c99cdc338d752d6976653c5e68d227b5b6b03ab4938d6eaeb3c4e1607e24
+```
+
+Images must already be present: execution never pulls an image or substitutes another engine. The approved identities are in [engine-matrix.json](apps/investigator/faultglass/engine-matrix.json).
+
+### Compare a case without a model key
+
+In the same terminal:
+
+```sh
+python -m faultglass.execution \
+  --case tests/fixtures/call-yield.faultglass.json \
+  --pair call-yield-c-rust
+```
+
+This runs a fresh baseline and target, prints a JSON report to stdout, and saves evidence under the configured root. Expect `baseline: error`, `target: crash`, and `outcome: reproduced`. A completed comparison exits with `0` whether or not a difference was found; inspect `outcome` to distinguish the results.
+
+For a matching case and an integrity check:
+
+```sh
+python -m faultglass.execution \
+  --case tests/fixtures/matching.faultglass.json \
+  --pair call-yield-c-rust
+python -m faultglass.verify "$FAULTGLASS_ARTIFACT_ROOT/<reported-run-id>"
+```
+
+Standalone comparisons require neither the persistent context service nor Gemini. See [execution documentation](apps/investigator/README.md) for the case contract, output limits, and recovery commands.
+
+### Start the browser workspace
+
+From the repository root:
 
 ```sh
 pnpm --dir apps/web install --frozen-lockfile
-python3 -m venv apps/investigator/.venv
-cd apps/investigator
-.venv/bin/python -m pip install -r requirements.lock
-docker pull --platform linux/amd64 falkordb/falkordb@sha256:ffc97adebdd027ec71ddf7143f38d95c65846d6abd38404ab452873d045db37b
-docker pull --platform linux/amd64 ghcr.io/falkordb/falkordb-server@sha256:9367c99cdc338d752d6976653c5e68d227b5b6b03ab4938d6eaeb3c4e1607e24
-cd ../..
 docker compose up -d --wait context
 ```
 
-Create a private, git-ignored `.env` at the repository root containing your `GEMINI_API_KEY`. Load it only in the worker terminal. Then open three terminals, each starting at the repository root.
+Create a private, git-ignored `.env` at the repository root with:
 
-**API:**
+```dotenv
+GEMINI_API_KEY=your-private-key
+```
+
+Run the following in three separate terminals, each starting at the repository root. API and worker must run under the same Linux account and use the same absolute evidence directory.
+
+API:
 
 ```sh
 cd apps/investigator
@@ -35,7 +79,7 @@ python -m faultglass.context bootstrap
 uvicorn faultglass.api:app --host 127.0.0.1 --port 8000
 ```
 
-**Worker:**
+Worker:
 
 ```sh
 cd apps/investigator
@@ -50,137 +94,85 @@ export FAULTGLASS_INVESTIGATION_MODE=agent
 python -m faultglass.worker
 ```
 
-**Browser app:**
+Browser app:
 
 ```sh
 pnpm --dir apps/web dev --host 127.0.0.1
 ```
 
-Open [the local workspace](http://127.0.0.1:5173). Wait for **Ready to investigate**, choose the first built-in case, and follow the [walkthrough](#walkthrough). The selected model is recorded in every investigation; access and quota depend on your key. A complete built-in investigation uses ten model calls. Check your remaining daily allowance before recording a live run; saved investigations can be reviewed without additional model calls. Existing history is preserved across restarts. Keep all services on loopback: this local path uses monitored storage and is not configured for public execution.
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite proxies `/api` to port 8000. Choose **Trailing MATCH after a procedure call** to start an investigation. Its saved URL survives browser reloads and API restarts; closing the browser does not stop the worker.
 
-### Persistent service installation
+The configured model must be available to your API key. Keep the key in the worker environment only. For a credential-free browser session, replace the worker's environment-file loading and model settings with `export FAULTGLASS_INVESTIGATION_MODE=deterministic_diagnostic`. Saved outcomes explicitly identify this mode as diagnostic.
 
-For a persistent installation, also use systemd with cgroup v2/journal namespaces and Nginx.
+If startup is unavailable, inspect [the health endpoint](http://127.0.0.1:8000/api/health): `contextReady`, `workerReady`, `executionReady`, and `agentReady` report separate prerequisites. `status: ok` alone does not mean investigations are ready.
 
-Follow [setup and operations](deploy/SETUP.md) once to prepare the service account, locked dependencies, bounded persistent filesystems and private environment files. Then:
+## What an investigation records
 
-```sh
-sudo /opt/faultglass/deploy/runtime up
-curl http://127.0.0.1:8080/api/health
-sudo /opt/faultglass/deploy/runtime status
-```
+A case contains setup statements, a focal Cypher query, parameters, and an observation policy. The [built-in case](apps/web/src/cases/call-yield.faultglass.json) is a small example. Cases explicitly choose ordered or unordered result comparison and may include read-only state checks and an expected result or error.
 
-Open [the local workspace](http://127.0.0.1:8080). Read context, worker, execution and agent readiness individually; `status: ok` alone is insufficient. Startup verifies the schema/catalog without resetting history. [Verification status](VERIFICATION.md) separates actual results from host/human checks still required. The prepared systemd installation still requires verification on a fresh supported host.
+The worker first reproduces the case, extracts supported language features, and retrieves compatible history. It then ranks supported experiments using feature overlap, historical outcomes, version compatibility, novelty, cost, and verified semantic contrasts. The current catalog has two transformations for a conservative `CALL … YIELD … MATCH` query shape: replacing the terminal match with `OPTIONAL MATCH`, or inserting a binding-preserving `WITH` before it. Unsupported shapes remain unresolved.
 
-## Architecture and authority
+For a reproduced difference, the worker repeats its selected reduction source on fresh engines before trying query cuts and whole setup-statement deletions. Each retained change must be smaller and preserve the exact divergence signature and observation policy. The workspace keeps accepted and rejected attempts inspectable. Bounded reduction finds a smaller verified case when possible; it does not claim a global minimum or independent repeatability of every reduced descendant.
 
-```mermaid
-flowchart TD
-    Browser[React workspace] --> Ingress[One origin: Nginx static files and API proxy]
-    Ingress --> API[Private FastAPI: one process]
-    API --> Graph[(Persistent FalkorDB context)]
-    API --> Files[(Private immutable evidence)]
-    Worker[Singleton Python worker] --> Graph
-    Worker --> Files
-    Worker --> Gemini[Gemini: bounded validated tool requests]
-    Worker --> Runner[Serialized Docker runner]
-    Runner --> Baseline[Disposable baseline: network none]
-    Runner --> Target[Disposable target: network none]
-```
+Eligible stable investigations produce a behavioral family assessment and three downloads: the retained `.faultglass.json` case, a pytest scaffold, and an evidence report. The scaffold requires a `faultglass_repository_harness` fixture in the destination test suite and skips until that adapter is provided. Without an explicit expectation, it records baseline compatibility behavior. A crash is never an expected passing result.
 
-FalkorDB owns admissions, revisions, reservations, experiment provenance and procedural memory. Files own immutable receipt/output bytes; a completed phase requires both to agree. Removing context prevents admission, retrieval, publication and learned selection. Browser caches are disposable. The URL identifies the investigation; versioned session storage retains only start key/digest/returned ID. Unsaved drafts do not survive refresh.
+Completed, eligible experiments contribute version-scoped history. A later run of **Trailing MATCH with two node labels** can show how that history affected its actual ranking, including a comparison with the ranking without the prior evidence. History may change a score without changing experiment order.
 
-Gemini requests allowlisted tools and cited interpretations. Trusted deterministic code validates identities, citations, data permission, actions and budgets before dispatch. Only exact approved built-in cases and approved connected history may be transmitted. Public/synthetic import permission alone does not authorize model processing. Calls are durably reserved without automatic retries of uncertain inference. Exclusion, degradation and diagnostic mode remain visible and cannot certify a complete agent loop.
+## Execution and persistence
 
-API and worker are trusted privileged services: the API retains Docker access for image preflight; only the worker runs engines. Both use the same account, absolute evidence root and account-level locks. Disposable engines receive no context/provider credentials, host mounts, socket, network or published ports.
+The React workspace reads snapshots and server-sent events from FastAPI. The API saves admissions in FalkorDB; a separate singleton Python worker runs the investigations. Only the worker executes engines, although the API also needs Docker access to verify image readiness.
 
-## Graph model
+FalkorDB stores investigation revisions and relationships between cases, features, experiments, runs, divergences, behavioral families, and exported tests. Immutable filesystem artifacts hold input bytes, observations, logs, and receipts. Readers verify those artifacts against the graph's saved references. Preserve the graph and evidence directory together when backing up or restoring an installation.
 
-The [authoritative contracts](apps/investigator/faultglass/context_models.py) define ten labels:
+The main implementation entry points are:
 
-| Label          | Meaning                                                 |
-| -------------- | ------------------------------------------------------- |
-| EngineVersion  | Repository, commit, lineage and approved image identity |
-| Investigation  | Episode with durable revisions and receipt heads        |
-| FaultCase      | Canonical executable case and observation policy        |
-| Fingerprint    | Conservative structural identity and features           |
-| Feature        | Controlled semantic construct                           |
-| Probe          | Versioned supported transformation                      |
-| Run            | Role-specific observed execution                        |
-| Divergence     | Deterministic paired signature                          |
-| FaultFamily    | Evidence-backed behavioral profile                      |
-| RegressionTest | Exported retained-case regression reference             |
+- [History retrieval](apps/investigator/faultglass/queries/history.cypher) connects case features to classified investigations and effective experiments; supporting evidence and version scope constrain what can be reused.
+- [Experiment ranking](apps/investigator/faultglass/planner.py) selects applicable transformations deterministically and rejects duplicate outputs.
+- [Comparison](apps/investigator/faultglass/comparison.py) uses typed normalized values, preserves duplicate unordered rows, and excludes engine-local identifiers. Explicit expectations are assessed separately from disagreement.
+- [Memory publication](apps/investigator/faultglass/memory_writer.py) records eligible contributions idempotently so recovery cannot count an experiment twice.
 
-| Source        | Relationship     | Target         |
-| ------------- | ---------------- | -------------- |
-| Investigation | STARTED_FROM     | FaultCase      |
-| FaultCase     | HAS_FINGERPRINT  | Fingerprint    |
-| Fingerprint   | USES_FEATURE     | Feature        |
-| Probe         | TARGETS_FEATURE  | Feature        |
-| Investigation | SELECTED_PROBE   | Probe          |
-| Investigation | EXECUTED_AS      | Run            |
-| Run           | ON_VERSION       | EngineVersion  |
-| Run           | PRODUCED         | Divergence     |
-| Divergence    | REDUCED_TO       | FaultCase      |
-| Divergence    | MATCHES_FAMILY   | FaultFamily    |
-| FaultFamily   | INVOLVES_FEATURE | Feature        |
-| Probe         | EFFECTIVE_FOR    | FaultFamily    |
-| FaultCase     | DERIVED_TEST     | RegressionTest |
+The [context reference](apps/investigator/CONTEXT.md) documents graph identities and relationships. The [investigation reference](apps/investigator/INVESTIGATIONS.md) covers API endpoints, event replay, cancellation, and recovery.
 
-Relationships carry stable identities and source provenance. Bootstrap installs indexes, features and probe definitions, never learned episodes or counters. Indexes do not enforce uniqueness; trusted writer locks and immutable conflict checks serialize publication. See [identities, schema and retrieval](apps/investigator/CONTEXT.md).
+## Scope and operating limits
 
-## Queries and algorithms
+This is a shared workspace without authentication or private-case isolation. Use public or synthetic cases and keep the local services on loopback. Model processing is restricted to exact approved built-in cases and approved connected history; importing a public case does not grant permission to transmit it to Gemini. Excluded inputs and provider failures are recorded explicitly, preserving verified execution evidence.
 
-- [History](apps/investigator/faultglass/queries/history.cypher), [paths](apps/investigator/faultglass/queries/history-paths.cypher) and [supporting provenance](apps/investigator/faultglass/queries/history-provenance.cypher) connect matching features to compatible classified episodes and effective probes. Ordered engine scope, comparator version, disabled probes, superseded families and current-episode exclusion constrain usable history. Missing supporting evidence fails closed.
-- [Selection](apps/investigator/faultglass/queries/probe-selection.cypher) saves the action before execution; [observations](apps/investigator/faultglass/queries/probe-observation.cypher) attach actual paired evidence. [Planner scoring](apps/investigator/faultglass/planner.py) uses `0.35 × feature fit + 0.30 × historical yield + 0.20 × version affinity + 0.10 × novelty − 0.05 × normalized cost + 0.10 × verified boundary value`. It chooses the best compatible row without summing overlapping paths, breaks ties deterministically and rejects duplicate transformed cases. [Experiments](apps/investigator/PROBES.md) explains every factor.
-- [Semantic mutations](apps/investigator/faultglass/probe_transforms.py) replace terminal MATCH with OPTIONAL MATCH or insert a binding-preserving WITH in a conservative procedure-call grammar. Unsupported syntax remains unresolved; the model cannot install arbitrary transformations.
-- [Normalization](apps/investigator/faultglass/normalize.py) preserves types, sorts map keys/labels and excludes engine-local IDs. [Comparison](apps/investigator/faultglass/comparison.py) preserves ordered rows or compares unordered multisets with duplicates. Signatures bind observations, policy, comparator and engine identities. Explicit oracle assessment remains separate.
-- [Reduction proposals](apps/investigator/faultglass/reduction_candidates.py) use supported query cuts and whole setup deletions. The [reduction service](apps/investigator/faultglass/reduction_service.py) repeats the source on fresh engines, then retains strictly smaller candidates preserving frozen fields and the exact divergence. Rejections stay inspectable. Bounded search implies neither universal minimality nor independent stability of every descendant.
-- [Atomic publication](apps/investigator/faultglass/queries/runtime-commit.cypher) advances revision, domain links and receipt head together. [Memory contribution](apps/investigator/faultglass/memory_writer.py) and [provenance](apps/investigator/faultglass/queries/memory-provenance.cypher) use a classification-scoped idempotency key. Only eligible completed selections count; seeds, repeats and reducer candidates do not inflate attempts. Lost acknowledgments reconcile without another increment.
+Each disposable engine runs with networking disabled, no host mounts or published ports, a read-only root, dropped privileges, one CPU, and 512 MiB of memory. Queries, output capture, cleanup, and storage are bounded. Unsupported values or incomplete results fail comparison rather than being treated as equal.
 
-## Walkthrough
+Investigations allow at most four experiments, one source repeat, four reduction comparisons, 64 MiB of artifacts, and 15 minutes from admission, including downtime. Gemini is limited to twelve calls, fifteen seconds per call, and sixty total provider seconds. An uncertain provider call is not retried automatically.
 
-1. Choose **Trailing MATCH after a procedure call** and the available pair. Start once; double-click protection and durable idempotency preserve one admission.
-2. Inspect baseline error, target crash, fingerprint and **Why this experiment?** Expand provenance and the actual selected action.
-3. Review the repeated reduction source, accepted lineage and unsuccessful attempts. The current verified case remains authoritative while a candidate is pending.
-4. Read the conclusion/limitations. Download case, regression scaffold and report. The scaffold needs explicit repository-harness wiring; a crash is not desired behavior.
-5. Reload the URL, disconnect/reconnect, and reopen after an API restart. Reads reconcile saved evidence without submitting work again.
-   You can also reopen either run from **Recent investigations** on the landing screen.
-6. Start **Trailing MATCH with two node labels** as a distinct investigation. Inspect historical counterfactual and executed order. A score increase alone does not prove changed action.
+For persistent hosting, [deployment setup](deploy/SETUP.md) provides systemd services, same-origin Nginx configuration, bounded storage, and coordinated backup instructions. The supplied ingress listens on loopback; a fresh-host service installation still requires verification before use.
 
-The explicit [live acceptance check](apps/investigator/INVESTIGATIONS.md#verification) requires a complete source Explorer loop and a fresh related changed action, execution, exports and memory. Saved receipt audits are labeled as audits, never fresh runs.
+## Development checks
 
-## Limits and recovery
-
-This shared workspace has no accounts or private cases. Use public/synthetic inputs. Per investigation: four probes, one source stability check, four reduction comparisons, 32 proposals, 900 seconds including downtime, 64 MiB artifacts and 512 events. Provider: twelve calls, fifteen seconds each, sixty total seconds.
-
-Each engine has one CPU, 512 MiB without swap, 128 PIDs, 128 MiB private tmpfs, read-only root and dropped privileges. Startup/query/pair deadlines are 20/5/60 seconds with bounded cleanup. Capture caps: 1,000 rows, 1 MiB observations, 256 KiB logs, 8 MiB paired artifacts. Unsupported values and incomplete output cannot become equal results. The approved historical pair does not describe current release correctness.
-
-Ingress commands allow exactly 327,680 bytes; canonical case validation allows 262,144 bytes. POST rate is one/second with burst five, with 64 concurrent requests/source. API parsing has a total fifteen-second body deadline. One API process enforces one new admission/ten seconds (conservatively shared across the proxy), eight queued jobs and sixteen streams. Forged forwarding headers do not change accounting. Ordinary reads/exact-key recovery admit no work. See [operations](deploy/SETUP.md) for bounds, transient counters and backups.
-
-Preserve graph and artifacts together. Browser/API stop does not cancel work. Complete reserved evidence reconciles without rerunning; incomplete execution fails after owned cleanup. Corrupt committed bytes remain integrity failures. Published exports survive later memory failure. Never reset context, edit receipts or prune arbitrary containers as recovery. See [saved investigations](apps/investigator/INVESTIGATIONS.md).
-
-## Checks and release
+From `apps/investigator`, with the virtual environment activated:
 
 ```sh
-cd apps/investigator
-. .venv/bin/activate
 python -m pytest tests/unit
-python -m pytest tests/context -m context
-python -m pytest tests/integration
-python -m pytest tests/deployment
-python -m pytest tests/live/test_explorer_memory.py -s
 ruff check .
 ruff format --check .
-cd ../..
+```
+
+With Docker, both approved images, and the context service available:
+
+```sh
+python -m pytest tests/context -m context
+python -m pytest tests/integration
+```
+
+Run backend suites serially with the ordinary worker stopped: some tests acquire its singleton lock. Integration tests use real engines; provider responses are controlled in the deterministic suites. The separate live test requires a configured Gemini key and model:
+
+```sh
+python -m pytest tests/live/test_explorer_memory.py -s
+```
+
+From the repository root:
+
+```sh
 pnpm --dir apps/web test
 pnpm --dir apps/web lint
 pnpm --dir apps/web build
 pnpm --dir apps/web format:check
 ```
 
-Run backend suites serially with the ordinary worker stopped: singleton tests deliberately acquire its account lock. Engine/graph tests require Docker, approved images and context. Ingress tests require Nginx and a built frontend. Live acceptance additionally needs private credentials/model access and is excluded from default discovery. See [frontend development](apps/web/README.md) and [standalone execution](apps/investigator/README.md).
-
-FaultGlass enters **Track 01 — Agents That Act on Connected Data** and **Track 02 — Agent Memory and Coordination** in [Graph Hacks](https://www.wemakedevs.org/hackathons/falkordb). [Official rules](https://www.wemakedevs.org/hackathons/falkordb/rules) require a public repository, working demo video, usable setup or deployment, track declaration and AI disclosure. The deadline is October 18, 2026 at 11:59 PM IST.
-
-**AI assistance disclosure:** OpenAI Codex assisted implementation, documentation and automated verification. Automated checks do not establish the builder's personal review or technical understanding. The builder must verify/explain important Cypher, comparison, reducer, isolation and operational decisions. [Release verification](VERIFICATION.md) lists outstanding human/external checks. No working public video or hosted execution is claimed here.
+The ingress suite, `python -m pytest tests/deployment` from `apps/investigator`, additionally requires Nginx and a built frontend. See [frontend development](apps/web/README.md) for contract generation and tooling details.
