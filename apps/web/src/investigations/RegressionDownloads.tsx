@@ -1,6 +1,8 @@
 import { useState } from "react";
-import type { ExportManifest } from "../contracts/evidence";
-
+import { useMutation, useQuery } from "@tanstack/react-query";
+import type { ExportManifest, DownloadReference } from "../contracts/evidence";
+import { investigationKey } from "./queries";
+import { verifiedExport } from "./verifiedExport";
 export default function RegressionDownloads({
   id,
   manifest,
@@ -8,54 +10,41 @@ export default function RegressionDownloads({
   id: string;
   manifest: ExportManifest;
 }) {
-  const [preview, setPreview] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [pending, setPending] = useState(false);
   const labels = {
     case: "Download case",
     "regression-test": "Download regression test",
-    report: "Download report",
+    report: "Download evidence report",
   };
-  async function download(key: string, filename: string) {
-    try {
-      const response = await fetch(`/api/investigations/${id}/export/${key}`);
-      if (!response.ok) throw new Error();
-      const url = URL.createObjectURL(await response.blob());
+  const test = manifest.files.find((file) => file.key === "regression-test");
+  const preview = useQuery({
+    queryKey: [...investigationKey(id), "export", test?.sha256],
+    enabled: open && Boolean(test),
+    retry: false,
+    queryFn: async ({ signal }) =>
+      (await verifiedExport(id, test!, signal)).text(),
+  });
+  const download = useMutation({
+    retry: false,
+    mutationFn: async (file: DownloadReference) => {
+      const url = URL.createObjectURL(await verifiedExport(id, file));
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = filename;
+      anchor.download = file.path.split("/").at(-1) ?? file.key;
       anchor.click();
-      URL.revokeObjectURL(url);
-      setMessage("Download prepared.");
-    } catch {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+    onSuccess: () => setMessage("Download prepared."),
+    onError: () =>
       setMessage(
         "This download could not be verified. Your saved conclusion is preserved.",
-      );
-    }
-  }
-  async function showTest() {
-    setOpen((value) => !value);
-    if (preview !== null) return;
-    setPending(true);
-    try {
-      const response = await fetch(
-        `/api/investigations/${id}/export/regression-test`,
-      );
-      if (!response.ok) throw new Error();
-      setPreview(await response.text());
-    } catch {
-      setMessage(
-        "This download could not be verified. Retry connection to check its saved status.",
-      );
-    } finally {
-      setPending(false);
-    }
-  }
+      ),
+  });
   async function copy() {
-    if (preview === null) return;
+    if (!preview.data) return;
     try {
-      await navigator.clipboard.writeText(preview);
+      await navigator.clipboard.writeText(preview.data);
       setMessage("Regression test copied.");
     } catch {
       setMessage(
@@ -65,50 +54,61 @@ export default function RegressionDownloads({
   }
   return (
     <div className="border-t border-line py-6">
-      <h4 className="font-semibold">Take the evidence with you</h4>
+      <h3 className="font-semibold">Take the evidence with you</h3>
       <p className="mt-3 text-sm text-muted">
-        Smallest case retained by the supported reductions.{" "}
+        Smaller verified case retained by the supported reductions; global
+        minimality is not established.{" "}
         {manifest.expectationBasis === "baseline_observation"
           ? "The test records observed baseline compatibility behavior; it does not establish universal correctness."
           : manifest.expectationBasis === "unasserted"
             ? "No supported expected behavior was available for this assertion."
             : "The test encodes the case’s explicit expectation."}{" "}
+        The regression test is a scaffold requiring your repository harness.
         Wire its disposable graph fixture into your repository before use.
       </p>
       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
         {manifest.files.map((file) => (
-          <a
+          <button
             key={file.key}
-            className="inline-flex min-h-11 items-center underline"
-            href={`/api/investigations/${id}/export/${file.key}`}
-            download={file.path}
-            onClick={(event) => {
-              if (
-                !event.ctrlKey &&
-                !event.metaKey &&
-                !event.shiftKey &&
-                !event.altKey
-              ) {
-                event.preventDefault();
-                void download(file.key, file.path);
-              }
-            }}
+            disabled={download.isPending}
+            className="min-h-11 underline disabled:opacity-50"
+            onClick={() => download.mutate(file)}
           >
             {labels[file.key]}
-          </a>
+          </button>
         ))}
       </div>
-      <button
-        className="mt-3 min-h-11 underline"
-        aria-expanded={open}
-        onClick={() => void showTest()}
-      >
-        {open ? "Hide regression test" : "Show regression test"}
-      </button>
+      {download.isPending ? (
+        <p className="mt-2 text-sm" role="status">
+          Verifying download…
+        </p>
+      ) : null}
+      {test ? (
+        <button
+          className="mt-3 min-h-11 underline"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? "Hide regression test" : "Show regression test"}
+        </button>
+      ) : null}
       {open ? (
         <div>
-          {pending ? <p role="status">Loading regression test…</p> : null}
-          {preview !== null ? (
+          {preview.isFetching ? (
+            <p role="status">Loading regression test…</p>
+          ) : null}
+          {preview.error ? (
+            <p className="text-sm text-failure" role="status">
+              This download could not be verified.{" "}
+              <button
+                className="min-h-11 underline"
+                onClick={() => void preview.refetch()}
+              >
+                Retry download
+              </button>
+            </p>
+          ) : null}
+          {preview.data !== undefined ? (
             <>
               <button
                 className="min-h-11 border border-line px-4"
@@ -118,9 +118,9 @@ export default function RegressionDownloads({
               </button>
               <pre
                 tabIndex={0}
-                className="mt-4 max-h-96 overflow-auto border border-line bg-surface p-4 font-mono text-xs"
+                className="mt-4 max-h-96 overflow-auto border-l-2 border-line-strong bg-secondary p-4 font-mono text-xs"
               >
-                {preview}
+                {preview.data}
               </pre>
             </>
           ) : null}

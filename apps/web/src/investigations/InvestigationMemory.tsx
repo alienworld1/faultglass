@@ -3,9 +3,13 @@ import type { MemoryDelta } from "../contracts/evidence";
 export default function InvestigationMemory({
   memory,
   state,
+  downloadsReady,
+  finished,
 }: {
   memory: MemoryDelta | null;
   state: string | null;
+  downloadsReady: boolean;
+  finished: boolean;
 }) {
   return (
     <div className="border-t border-line py-6">
@@ -15,8 +19,12 @@ export default function InvestigationMemory({
           : memory?.state === "ineligible"
             ? "Evidence saved. No procedural update was made."
             : state === "failed"
-              ? "Downloads are ready, but investigation memory was not saved."
-              : "Saving investigation memory…"}
+              ? downloadsReady
+                ? "Downloads are ready, but investigation memory was not saved."
+                : "Investigation memory was not saved."
+              : finished
+                ? "No saved memory receipt is available."
+                : "Saving investigation memory…"}
       </h4>
       {memory?.reason ? (
         <p className="mt-3 text-sm text-muted">{memory.reason}</p>

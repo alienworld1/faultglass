@@ -1,4 +1,9 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { admissionStorageKey, savedStart } from "./admission";
+import EngineIdentity from "./EngineIdentity";
+import MissingInvestigation from "./MissingInvestigation";
 import { request, terminal } from "./api";
 import { useInvestigation } from "./useInvestigation";
 import InvestigationConclusion from "./InvestigationConclusion";
@@ -24,47 +29,26 @@ const labels: Record<string, string> = {
 
 export default function InvestigationPage({ id }: { id: string }) {
   const [retry, setRetry] = useState(0);
-  const [cancelPending, setCancelPending] = useState(false);
   const [cancelled, setCancelled] = useState(false);
-  const [error, setError] = useState("");
-  const [visible, setVisible] = useState(30);
-  const { snapshot, reduction, conclusion, events, connection, missing } =
-    useInvestigation(id, retry);
-  async function cancel() {
-    setCancelPending(true);
-    try {
-      await request(`/api/investigations/${id}/cancel`, { method: "POST" });
-      setCancelled(true);
-    } catch {
-      setError(
-        "We couldn’t confirm cancellation. Retry connection to check its saved status.",
-      );
-    } finally {
-      setCancelPending(false);
-    }
-  }
-  if (missing)
-    return <p className="py-8">We couldn’t find that investigation.</p>;
+  const {
+    snapshot,
+    evidence,
+    reduction,
+    conclusion,
+    connection,
+    missing,
+    integrityError,
+  } = useInvestigation(id, retry);
+  const cancellation = useMutation({
+    mutationFn: () =>
+      request(`/api/investigations/${id}/cancel`, { method: "POST" }),
+    retry: false,
+    onSuccess: () => setCancelled(true),
+    onSettled: () => setRetry((value) => value + 1),
+  });
+  if (missing) return <MissingInvestigation />;
   return (
     <section className="min-w-0">
-      <p className="sr-only" role="status" aria-atomic="true">
-        {events
-          .filter((event) =>
-            [
-              "reduction.accepted",
-              "reduction.finished",
-              "family.matched",
-              "family.provisional",
-              "family.unresolved",
-              "export.ready",
-              "memory.updated",
-              "investigation.complete",
-              "investigation.failed",
-              "investigation.cancelled",
-            ].includes(event.type),
-          )
-          .at(-1)?.summary ?? ""}
-      </p>
       {connection ? (
         <div className="border-b border-line py-5">
           <p role="status">{connection}</p>
@@ -83,24 +67,34 @@ export default function InvestigationPage({ id }: { id: string }) {
       ) : null}
       {snapshot ? (
         <>
-          <div className="border-b border-line py-8">
-            <p className="break-all font-mono text-xs text-muted">
-              {snapshot.id}
-            </p>
-            <h2 className="mt-3 text-2xl font-semibold">{snapshot.title}</h2>
-            <div className="mt-6 grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line py-6">
+            <div className="min-w-0">
+              <p className="break-all font-mono text-xs text-muted">
+                {snapshot.id}
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold">{snapshot.title}</h1>
+            </div>
+            <Link
+              to="/"
+              className="inline-flex min-h-11 items-center underline"
+              onClick={() => {
+                try {
+                  if (savedStart()?.id === id)
+                    sessionStorage.removeItem(admissionStorageKey);
+                } catch {
+                  return;
+                }
+              }}
+            >
+              New investigation
+            </Link>
+            <div className="grid w-full min-w-0 gap-4 sm:grid-cols-2">
               {snapshot.engines.map((engine, index) => (
-                <div className="min-w-0" key={index}>
-                  <h3 className="font-semibold">
-                    {index === 0 ? "Baseline" : "Target"}
-                  </h3>
-                  <p className="mt-2 font-mono text-sm">{engine.label}</p>
-                  <p className="mt-2 break-all font-mono text-xs text-muted">
-                    {engine.commitSha}
-                    <br />
-                    {engine.imageDigest}
-                  </p>
-                </div>
+                <EngineIdentity
+                  key={engine.id}
+                  role={index === 0 ? "Baseline" : "Target"}
+                  engine={engine}
+                />
               ))}
             </div>
           </div>
@@ -120,7 +114,8 @@ export default function InvestigationPage({ id }: { id: string }) {
                   ? reductionAction(snapshot.reduction)
                   : (labels[snapshot.status] ?? "Loading saved progress…")}
             </p>
-            {snapshot.terminalReason ? (
+            {snapshot.terminalReason &&
+            snapshot.terminalReason.message !== labels[snapshot.status] ? (
               <p className="mt-2 text-sm">{snapshot.terminalReason.message}</p>
             ) : null}
             <p className="mt-4 text-sm text-muted">
@@ -134,13 +129,13 @@ export default function InvestigationPage({ id }: { id: string }) {
                 className="mt-5 min-h-11 border border-line px-4 disabled:opacity-50"
                 disabled={
                   ["CLASSIFYING", "EXPORTING"].includes(snapshot.status) ||
-                  cancelPending ||
+                  cancellation.isPending ||
                   cancelled ||
                   Boolean(snapshot.cancelRequestedAt)
                 }
-                onClick={() => void cancel()}
+                onClick={() => cancellation.mutate()}
               >
-                {cancelPending
+                {cancellation.isPending
                   ? "Saving cancellation…"
                   : "Cancel investigation"}
               </button>
@@ -150,48 +145,28 @@ export default function InvestigationPage({ id }: { id: string }) {
                 This investigation is finishing and can no longer be cancelled.
               </p>
             ) : null}
-            {error ? (
+            {cancellation.error ? (
               <p role="status" className="mt-4 text-sm text-failure">
-                {error}
+                We couldn’t confirm cancellation. Retry connection to check its
+                saved status.
               </p>
             ) : null}
           </div>
-          {reduction ? <ReductionLineage id={id} page={reduction} /> : null}
+          <div className="min-w-0 border-x border-line bg-surface">
+            {reduction ? <ReductionLineage id={id} page={reduction} /> : null}
+            {evidence ? (
+              <EvidenceDisclosure page={evidence} snapshot={snapshot} />
+            ) : null}
+          </div>
           {conclusion ? (
             <InvestigationConclusion
               id={id}
-              page={conclusion}
+              page={
+                integrityError ? { ...conclusion, exports: null } : conclusion
+              }
               snapshot={snapshot}
             />
           ) : null}
-          <EvidenceDisclosure id={id} revision={snapshot.revision} />
-          <div className="border-b border-line py-6">
-            <h3 className="font-semibold">Chronological trace</h3>
-            {events.length > visible ? (
-              <button
-                className="mt-3 min-h-11 underline"
-                onClick={() => setVisible((value) => Math.min(512, value + 30))}
-              >
-                Show older events
-              </button>
-            ) : null}
-            <ol className="mt-5 divide-y divide-line">
-              {events.slice(-visible).map((event) => (
-                <li
-                  key={event.id}
-                  className="grid gap-2 py-4 sm:grid-cols-[9rem_1fr]"
-                >
-                  <time
-                    className="font-mono text-xs text-muted"
-                    dateTime={event.at}
-                  >
-                    {new Date(event.at).toLocaleTimeString()}
-                  </time>
-                  <p className="text-sm">{event.summary}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
         </>
       ) : null}
     </section>

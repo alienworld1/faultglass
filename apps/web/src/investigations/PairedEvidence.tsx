@@ -6,14 +6,16 @@ export default function PairedEvidence({
   observations: PairedSummary;
 }) {
   return (
-    <div className="grid min-w-0 gap-6 sm:grid-cols-2">
+    <div className="grid min-w-0 divide-y divide-line border-y border-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
       {(["baseline", "target"] as const).map((role) => (
-        <div className="min-w-0" key={role}>
+        <div className="min-w-0 py-4 sm:px-4" key={role}>
           <h4 className="font-semibold capitalize">{role}</h4>
           <p className="mt-2 break-all font-mono text-xs">
             {observations[role].engineVersionId}
           </p>
-          <p className="mt-3 text-sm">{observations[role].status}</p>
+          <p className="mt-3 text-md font-semibold capitalize">
+            {observations[role].status}
+          </p>
           {observations[role].errorCategory ? (
             <p className="mt-2 font-mono text-xs">
               {observations[role].errorCategory}
@@ -26,7 +28,8 @@ export default function PairedEvidence({
           ) : null}
           {observations[role].rowCount !== null ? (
             <p className="mt-3 text-sm">
-              {observations[role].rowCount} rows observed
+              {observations[role].rowCount}{" "}
+              {observations[role].rowCount === 1 ? "row" : "rows"} observed
             </p>
           ) : null}
           {observations[role].columns.length ? (

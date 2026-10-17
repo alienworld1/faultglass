@@ -1,8 +1,9 @@
 import { useState } from "react";
-import type { ReductionCaseView, ReductionPage } from "../contracts/evidence";
+import { useQuery } from "@tanstack/react-query";
+import type { ReductionPage } from "../contracts/evidence";
 import { request } from "./api";
+import { investigationKey, retryRead } from "./queries";
 import ReductionCase from "./ReductionCase";
-
 export default function ReductionCaseLoader({
   id,
   caseId,
@@ -12,37 +13,38 @@ export default function ReductionCaseLoader({
   caseId: string;
   label: string;
 }) {
-  const [value, setValue] = useState<ReductionCaseView | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  async function load() {
-    setLoading(true);
-    try {
+  const [enabled, setEnabled] = useState(false);
+  const query = useQuery({
+    queryKey: [...investigationKey(id), "case", caseId],
+    enabled,
+    retry: retryRead,
+    queryFn: async ({ signal }) => {
       const page = await request<ReductionPage>(
-        `/api/investigations/${id}/reduction?caseId=${caseId}`,
+        `/api/investigations/${id}/reduction?caseId=${encodeURIComponent(caseId)}`,
+        { signal },
       );
-      if (page.case?.caseId !== caseId) throw new Error();
-      setValue(page.case);
-      setError("");
-    } catch {
-      setError("We couldn't load this saved case. Retry connection.");
-    } finally {
-      setLoading(false);
-    }
-  }
-  if (value) return <ReductionCase id={id} label={label} value={value} />;
+      if (page.case?.caseId !== caseId)
+        throw new Error("Saved evidence could not be verified.");
+      return page.case;
+    },
+  });
+  if (query.data)
+    return <ReductionCase id={id} label={label} value={query.data} />;
   return (
     <div className="min-w-0">
       <button
         className="min-h-11 underline disabled:opacity-50"
-        disabled={loading}
-        onClick={() => void load()}
+        disabled={query.isFetching}
+        onClick={() => {
+          setEnabled(true);
+          if (enabled) void query.refetch();
+        }}
       >
-        {loading ? "Loading case…" : `Inspect ${label.toLowerCase()}`}
+        {query.isFetching ? "Loading case…" : `Inspect ${label.toLowerCase()}`}
       </button>
-      {error ? (
+      {query.error ? (
         <p className="text-sm text-failure" role="status">
-          {error}
+          We couldn’t load this saved case. Retry the case read.
         </p>
       ) : null}
     </div>

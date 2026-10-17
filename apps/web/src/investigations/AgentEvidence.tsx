@@ -3,13 +3,15 @@ import type { AgentRun, AgentInterpretation } from "../contracts/evidence";
 export default function AgentEvidence({
   agent,
   interpretation,
+  finished,
 }: {
   agent: AgentRun | null;
   interpretation: AgentInterpretation | null;
+  finished: boolean;
 }) {
   if (!agent) return null;
   return (
-    <div className="border-t border-line py-6">
+    <div className="border-t border-line py-6 text-interpretation">
       <h4 className="font-semibold">AI investigation</h4>
       <p className="mt-3 text-sm text-muted">
         {agent.mode === "deterministic_diagnostic"
@@ -17,13 +19,19 @@ export default function AgentEvidence({
           : agent.status === "data_excluded"
             ? "This case or its connected history is excluded from AI sharing. Verified evidence is preserved."
             : agent.status === "degraded"
-              ? "AI investigation is unavailable. Verified evidence is preserved."
+              ? "Interpretation is unavailable. Verified evidence is preserved."
               : agent.status === "completed"
                 ? "The Explorer inspected connected evidence and requested the recorded experiments."
-                : "Inspecting connected investigation evidence…"}
+                : finished
+                  ? "Interpretation is unavailable. Verified evidence is preserved."
+                  : "Inspecting connected investigation evidence…"}
+      </p>
+      <p className="mt-2 break-words font-mono text-xs">
+        Saved agent: {agent.model || "No model recorded"} · {agent.status}
+        {agent.reasonCode ? ` · ${agent.reasonCode}` : ""}
       </p>
       {interpretation ? (
-        <dl className="mt-4 space-y-4">
+        <dl className="mt-4 space-y-4 border-l-2 border-interpretation pl-4">
           {(["observed", "interpretation", "unknown"] as const).map((key) => (
             <div key={key}>
               <dt className="text-xs font-semibold uppercase tracking-wider">
@@ -33,6 +41,7 @@ export default function AgentEvidence({
                 {interpretation.narrative[key].text}
               </dd>
               <dd className="mt-1 break-all font-mono text-xs text-muted">
+                Evidence references:{" "}
                 {interpretation.narrative[key].evidenceIds.join(" · ")}
               </dd>
             </div>

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { investigationKey, retryRead } from "./queries";
 import type { ReductionCaseView, ReductionPage } from "../contracts/evidence";
 import { request } from "./api";
 
@@ -11,39 +12,45 @@ export default function ReductionCase({
   value: ReductionCaseView;
   id: string;
 }) {
-  const [extra, setExtra] = useState<{
-    caseId: string;
-    setup: string[];
-    cursor: number | null;
-  } | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const saved = extra?.caseId === value.caseId ? extra : null;
-  const setup = [...value.setup, ...(saved?.setup ?? [])];
-  const cursor = saved ? saved.cursor : value.nextSetupCursor;
-  async function more() {
-    setLoading(true);
-    try {
+  const query = useInfiniteQuery({
+    queryKey: [
+      ...investigationKey(id),
+      "setup",
+      value.caseId,
+      value.nextSetupCursor,
+    ],
+    initialPageParam: value.nextSetupCursor,
+    enabled: false,
+    retry: retryRead,
+    queryFn: async ({ pageParam, signal }) => {
       const page = await request<ReductionPage>(
-        `/api/investigations/${id}/reduction?caseId=${value.caseId}&setupCursor=${cursor}`,
+        `/api/investigations/${id}/reduction?caseId=${encodeURIComponent(value.caseId)}&setupCursor=${pageParam}`,
+        { signal },
       );
-      if (page.case?.caseId !== value.caseId) throw new Error();
-      setExtra({
-        caseId: value.caseId,
-        setup: [...(saved?.setup ?? []), ...page.case.setup],
-        cursor: page.case.nextSetupCursor,
-      });
-      setError("");
-    } catch {
-      setError("We couldn't load the saved setup. Retry connection.");
-    } finally {
-      setLoading(false);
-    }
-  }
+      if (page.case?.caseId !== value.caseId)
+        throw new Error("Saved evidence could not be verified.");
+      return page.case;
+    },
+    getNextPageParam: (page) => page.nextSetupCursor ?? undefined,
+  });
+  const setup = [
+    ...value.setup,
+    ...(query.data?.pages.flatMap((page) => page.setup) ?? []),
+  ];
+  const cursor = query.data
+    ? query.data.pages.at(-1)!.nextSetupCursor
+    : value.nextSetupCursor;
+  const loading = query.isFetching;
+  const error = query.error
+    ? "We couldn’t load the saved setup. Retry the setup read."
+    : "";
   return (
     <section className="min-w-0">
       <h4 className="font-semibold">{label}</h4>
-      <pre className="mt-3 max-w-full overflow-x-auto border-l border-line pl-3 font-mono text-sm">
+      <pre
+        tabIndex={0}
+        className="mt-3 max-w-full overflow-x-auto border-l border-line pl-3 font-mono text-sm"
+      >
         {value.query}
       </pre>
       <p className="mt-4 text-xs text-muted">
@@ -53,7 +60,10 @@ export default function ReductionCase({
         <ol className="mt-2 space-y-3">
           {setup.map((query, index) => (
             <li key={index}>
-              <pre className="max-w-full overflow-x-auto font-mono text-xs">
+              <pre
+                tabIndex={0}
+                className="max-w-full overflow-x-auto font-mono text-xs"
+              >
                 {query}
               </pre>
             </li>
@@ -70,7 +80,7 @@ export default function ReductionCase({
         <button
           disabled={loading}
           className="mt-3 min-h-11 underline disabled:opacity-50"
-          onClick={() => void more()}
+          onClick={() => void query.fetchNextPage()}
         >
           {loading
             ? "Loading setup…"

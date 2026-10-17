@@ -1,3 +1,5 @@
+import { motion, useReducedMotion } from "motion/react";
+import { useMotionTiming } from "./useMotionTiming";
 import { useState } from "react";
 import type { SavedReduction } from "./api";
 import ReductionAttempt from "./ReductionAttempt";
@@ -13,6 +15,8 @@ export default function ReductionLineage({
   id: string;
   page: SavedReduction;
 }) {
+  const reducedMotion = useReducedMotion();
+  const transition = useMotionTiming("medium");
   const [visible, setVisible] = useState(10);
   const summary = page.summary;
   if (!summary || !page.case) return null;
@@ -23,9 +27,13 @@ export default function ReductionLineage({
     ["rejected", "failed"].includes(item.attempt.state),
   );
   return (
-    <section
+    <motion.section
+      initial={false}
+      layout={reducedMotion ? false : "position"}
+      layoutDependency={page.summary?.currentCaseId}
+      transition={transition}
       aria-labelledby="reduction-heading"
-      className="my-6 min-w-0 border border-line"
+      className="min-w-0 border-b border-line"
     >
       <div className="border-b border-line p-4 sm:p-6">
         <h3 id="reduction-heading" className="font-semibold">
@@ -54,6 +62,39 @@ export default function ReductionLineage({
           {summary.rejectedCount} · Verification failures:{" "}
           {summary.verificationFailures}
         </p>
+      </div>
+      <div className="border-b border-divergence bg-divergence-soft p-4 sm:px-6">
+        <h4 className="font-semibold text-divergence">Difference observed.</h4>
+        <p className="mt-2 text-sm">
+          {summary.source.referenceDivergence.kind} ·{" "}
+          {summary.source.referenceDivergence.changedDimensions.join(", ")}
+        </p>
+        <details>
+          <summary className="min-h-11 cursor-pointer py-3 text-sm">
+            Inspect difference and comparator provenance
+          </summary>
+          <p className="text-sm">
+            An engine disagreement does not establish which engine is correct.
+          </p>
+          <dl className="mt-3 space-y-2 text-xs">
+            <dt>Comparison version</dt>
+            <dd className="break-all font-mono">
+              {summary.source.referenceDivergence.comparisonVersion}
+            </dd>
+            <dt>Reference signature</dt>
+            <dd className="break-all font-mono">
+              {summary.source.referenceDivergence.signature}
+            </dd>
+            <dt>Baseline observation digest</dt>
+            <dd className="break-all font-mono">
+              {summary.source.referenceDivergence.baselineObservationDigest}
+            </dd>
+            <dt>Target observation digest</dt>
+            <dd className="break-all font-mono">
+              {summary.source.referenceDivergence.targetObservationDigest}
+            </dd>
+          </dl>
+        </details>
       </div>
       <div className="grid min-w-0 divide-y divide-line lg:grid-cols-[1fr_2fr] lg:divide-x lg:divide-y-0">
         <div className="min-w-0 p-4 sm:p-6">
@@ -176,6 +217,6 @@ export default function ReductionLineage({
           ) : null}
         </details>
       </div>
-    </section>
+    </motion.section>
   );
 }
