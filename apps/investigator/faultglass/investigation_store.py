@@ -141,6 +141,14 @@ class InvestigationStore:
                     429,
                 )
             from .models import read_case
+            from .storage_policy import storage_issue
+
+            issue = storage_issue(self.root)
+            if issue:
+                raise RuntimeErrorResponse(
+                    issue,
+                    "Investigations are temporarily unavailable. Evidence storage needs attention.",
+                )
 
             case = read_case(command.caseFile.encode())
             job_id, created = str(uuid4()), now()

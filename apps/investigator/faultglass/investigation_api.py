@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import threading
@@ -31,6 +32,7 @@ router = APIRouter(prefix="/api/investigations")
 streams = threading.BoundedSemaphore(16)
 rate_lock = threading.Lock()
 starts = {}
+COMMAND_SECONDS = 15
 
 
 def error(code, message, status, *, fields=None):
@@ -65,12 +67,20 @@ def bounded_response(value, status=200, headers=None):
 
 async def command_body(request):
     data = bytearray()
-    async for chunk in request.stream():
-        data.extend(chunk)
-        if len(data) > 327680:
-            raise RuntimeErrorResponse(
-                "input_too_large", "Choose a case file smaller than 256 KiB.", 413
-            )
+    try:
+        async with asyncio.timeout(COMMAND_SECONDS):
+            async for chunk in request.stream():
+                if len(data) + len(chunk) > 327680:
+                    raise RuntimeErrorResponse(
+                        "input_too_large",
+                        "Choose a case file smaller than 256 KiB.",
+                        413,
+                    )
+                data.extend(chunk)
+    except TimeoutError:
+        raise RuntimeErrorResponse(
+            "request_timeout", "The request took too long. Try again shortly.", 408
+        ) from None
     return bytes(data)
 
 

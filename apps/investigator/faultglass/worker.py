@@ -10,6 +10,7 @@ from docker.errors import DockerException
 from .artifacts import Lease
 from .context_artifacts import load_evidence, read_reference
 from .context_errors import ContextError, ContextUnavailable, EvidenceIntegrity
+from .errors import ExecutionFailure
 from .execution import interrupt, run_case
 from .explorer import (
     Explorer,
@@ -490,7 +491,17 @@ def main():
     signal.signal(signal.SIGTERM, interrupt)
     repository = GraphRepository()
     try:
+        from .gemini import agent_readiness
+        from .storage_policy import require_storage
+
         with WorkerPresence(repository.config) as presence:
+            ready = agent_readiness()
+            if (
+                not ready["agentReady"]
+                and ready["agentReason"] != "deterministic_diagnostic"
+            ):
+                raise ContextError("Check the worker provider configuration.")
+            require_storage(repository.config.artifact_root)
             repository.ensure_schema()
             with closing(docker_client()) as client:
                 for pair in PAIRS:
@@ -511,7 +522,7 @@ def main():
                     time.sleep(2)
     except KeyboardInterrupt:
         return 0
-    except (ContextError, DockerException, OSError, ValueError):
+    except (ContextError, DockerException, ExecutionFailure, OSError, ValueError):
         print(
             "Investigation worker could not start or continue safely. Check context, approved engines, evidence storage, and targeted cleanup.",
             file=sys.stderr,

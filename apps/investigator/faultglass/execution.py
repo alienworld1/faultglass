@@ -20,6 +20,7 @@ from .matrix import PLATFORM, engines_for
 from .models import Failure, RunLimits, RunReport, read_case
 from .normalize import VERSION as NORMALIZATION_VERSION
 from .runner import OWNER, DockerRunner, docker_client, verify_images
+from .storage_policy import require_storage
 from .validation_copy import case_error
 
 
@@ -72,6 +73,7 @@ def run_case(
     try:
         with Lease():
             try:
+                require_storage(root)
                 if (
                     admission_deadline is not None
                     and admission_deadline - time.monotonic()

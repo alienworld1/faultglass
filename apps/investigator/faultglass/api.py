@@ -11,6 +11,7 @@ from .investigation_api import error, mutation_origins, router, service_readines
 from .investigation_store import RuntimeErrorResponse
 from .matrix import ENGINES, PAIRS, engines_for
 from .runner import docker_client, verify_images
+from .storage_policy import storage_issue
 
 app = FastAPI(title="FaultGlass")
 app.include_router(router)
@@ -89,13 +90,14 @@ def health():
         from .worker_presence import worker_agent_readiness
 
         agent = worker_agent_readiness(repository.config)
+        storage = storage_issue(repository.config.artifact_root)
 
     return {
         **agent,
         **runtime,
         "status": "ok",
-        "executionReady": any(pair.id not in issues for pair in PAIRS),
-        "issues": sorted(set(issues.values()))
+        "executionReady": not storage and any(pair.id not in issues for pair in PAIRS),
+        "issues": sorted(set(issues.values()) | ({storage} if storage else set()))
         or ([] if PAIRS else ["no_verified_pair"]),
     }
 

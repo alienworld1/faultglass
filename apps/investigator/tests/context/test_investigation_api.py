@@ -91,6 +91,34 @@ def test_api_admission_returns_promptly_and_replay_survives_restart(
     assert InvestigationStore(repo).pending() == [job["id"]]
 
 
+def test_storage_refusal_preserves_existing_admission_and_reads(
+    connected_api, monkeypatch
+):
+    from faultglass import storage_policy
+
+    client, repo = connected_api
+    key = str(uuid4())
+    first = client.post(
+        "/api/investigations", json=body(), headers={"Idempotency-Key": key}
+    )
+    assert first.status_code == 202
+    identity = first.json()["investigation"]["id"]
+    monkeypatch.setattr(
+        storage_policy, "storage_issue", lambda root: "storage_reserve_low"
+    )
+    investigation_api.starts.clear()
+    rejected = client.post(
+        "/api/investigations", json=body(), headers={"Idempotency-Key": str(uuid4())}
+    )
+    assert rejected.status_code == 503
+    assert rejected.json()["error"]["code"] == "storage_reserve_low"
+    assert InvestigationStore(repo).pending() == [identity]
+    assert client.get("/api/investigations/" + identity).status_code == 200
+    assert client.post(
+        "/api/investigations", json=body(), headers={"Idempotency-Key": key}
+    ).json()["reused"]
+
+
 def test_invalid_requests_never_admit_and_errors_are_bounded(connected_api):
     client, repo = connected_api
     command = body()
