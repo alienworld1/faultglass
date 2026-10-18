@@ -2,12 +2,15 @@ import { lazy, Suspense } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import CaseIntake from "./investigations/CaseIntake";
 import MissingInvestigation from "./investigations/MissingInvestigation";
+import ShowcasePage from "./showcase/ShowcasePage";
+import LocalSetup from "./showcase/LocalSetup";
 
 const SavedInvestigation = lazy(
   () => import("./investigations/SavedInvestigation"),
 );
 
 export default function App() {
+  const showcase = import.meta.env.MODE === "showcase";
   return (
     <div className="mx-auto min-h-dvh w-full max-w-[1600px] min-w-0 px-4 sm:px-8">
       <a
@@ -23,23 +26,47 @@ export default function App() {
         >
           FaultGlass
         </Link>
-        <span className="text-sm text-muted">FalkorDB evidence workspace</span>
+        <nav
+          aria-label="Main navigation"
+          className="flex items-center gap-5 text-sm"
+        >
+          <Link
+            to="/run-locally"
+            className="inline-flex min-h-11 items-center underline"
+          >
+            Run locally
+          </Link>
+          <a
+            href="https://github.com/alienworld1/faultglass"
+            className="inline-flex min-h-11 items-center underline"
+          >
+            Source code
+          </a>
+        </nav>
       </header>
       <main id="main-content" tabIndex={-1} className="min-w-0">
         <Routes>
-          <Route path="/" element={<CaseIntake />} />
+          <Route
+            path="/"
+            element={showcase ? <ShowcasePage /> : <CaseIntake />}
+          />
+          <Route path="/run-locally" element={<LocalSetup />} />
           <Route
             path="/investigations/:id"
             element={
-              <Suspense
-                fallback={
-                  <p className="py-8" role="status">
-                    Loading saved evidence…
-                  </p>
-                }
-              >
-                <SavedInvestigation />
-              </Suspense>
+              showcase ? (
+                <LocalSetup />
+              ) : (
+                <Suspense
+                  fallback={
+                    <p className="py-8" role="status">
+                      Loading saved evidence…
+                    </p>
+                  }
+                >
+                  <SavedInvestigation />
+                </Suspense>
+              )
             }
           />
           <Route path="*" element={<MissingInvestigation />} />

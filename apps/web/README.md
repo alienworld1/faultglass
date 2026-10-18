@@ -1,5 +1,15 @@
 # FaultGlass web
 
+For a backend-free public preview, use `pnpm build:showcase`. The homepage
+explains the workflow, lets visitors inspect and download included input cases,
+and links to `/run-locally`. This build makes no API requests. Ordinary `pnpm dev`
+and `pnpm build` retain the full investigation workspace.
+
+The committed Vercel configuration selects showcase mode automatically. Follow
+the [Vercel setup checklist](../../deploy/VERCEL.md) to publish the free preview.
+From the repository root, `./deploy/local setup` and `./deploy/local start`
+prepare and launch the full local workspace with no model key.
+
 Start a case against approved FalkorDB engines, follow its saved investigation, and inspect paired evidence.
 
 ```sh

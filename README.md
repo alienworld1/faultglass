@@ -8,6 +8,43 @@ The current engine pair is FalkorDB C 4.22.0 and Rust commit `b033aec`, pinned b
 
 ## Run locally
 
+For a free public website, deploy the [browser preview to Vercel](deploy/VERCEL.md).
+Visitors can inspect the included cases and use the site's **Run locally** guide;
+the preview does not require a hosted backend or a model API key.
+
+### Quick start
+
+On Linux/amd64 (or an x86-64 WSL2 environment with Docker integration), install
+Python 3.12+, Git, pnpm 11.25.0, Docker Engine, and Docker Compose v2. Docker must
+be available to your user without sudo. Then, from the repository root:
+
+```sh
+./deploy/local setup
+./deploy/local start
+```
+
+Setup installs dependencies and pulls the exact approved engine images. Start
+runs the API, worker, and browser app together using persistent investigation
+memory. Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The default mode is
+deterministic diagnostics without Gemini interpretation or an API key. Keep the
+terminal open; Ctrl+C stops the app and preserves evidence. The context container
+stays running; `docker compose stop context` stops it without deleting history.
+
+For Gemini-guided investigations, stop the app and run
+`./deploy/local start --agent`. The launcher prompts privately for your key unless
+`GEMINI_API_KEY` is already exported, and passes it only to the worker. It does not
+read or write `.env`. Set `FAULTGLASS_GEMINI_MODEL` to override the default
+`gemini-2.5-flash-lite`; access and free quota depend on your provider account.
+
+The launcher uses `monitored_local` storage and loopback networking for personal
+use. It does not enable public backend execution. Saved data defaults to
+`apps/investigator/evidence` and the existing Compose `context-data` volume.
+For an existing installation, preserve its graph/evidence pairing and export its
+`FAULTGLASS_ARTIFACT_ROOT` and `FAULTGLASS_CONTEXT_DATA` before launching. Do not
+switch to a different root or context volume while recovering existing work.
+
+The manual commands below remain available for running services separately.
+
 Requirements: Python 3.12+, Docker Engine, and Docker Compose v2. The browser app uses pnpm 11.25.0; its package configuration prepares Node 24.19.0. Your account must have Docker access. Keep at least 2 GiB free for evidence in addition to dependencies and images.
 
 ### Install the investigator and engines

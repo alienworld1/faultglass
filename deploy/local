@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+python="$root/apps/investigator/.venv/bin/python"
+cd "$root"
+
+usage() {
+  echo 'Usage: ./deploy/local {setup|start [--agent]}'
+}
+
+require_tools() {
+  if [[ $(uname -s) != Linux || $(uname -m) != x86_64 ]]; then
+    echo 'Use Linux on an Intel/AMD x86-64 machine (or x86-64 WSL2 with Docker integration).' >&2
+    exit 1
+  fi
+  for tool in python3 pnpm docker setsid; do
+    command -v "$tool" >/dev/null || { echo "Install $tool, then try again." >&2; exit 1; }
+  done
+  python3 -c 'import sys; sys.exit(sys.version_info < (3, 12))' || {
+    echo 'Install Python 3.12 or newer, then try again.' >&2; exit 1;
+  }
+  docker compose version >/dev/null 2>&1 || {
+    echo 'Install Docker Compose v2, then try again.' >&2; exit 1;
+  }
+  docker info >/dev/null 2>&1 || {
+    echo 'Start Docker and allow your user to access it without sudo, then try again.' >&2; exit 1;
+  }
+}
+
+setup() {
+  require_tools
+  if [[ ! -x "$python" ]]; then
+    python3 -m venv "$root/apps/investigator/.venv"
+  fi
+  (cd apps/investigator && "$python" -m pip install -r requirements.lock)
+  env -u GEMINI_API_KEY pnpm --dir apps/web install --frozen-lockfile
+  while IFS= read -r image; do
+    docker pull --platform linux/amd64 "$image"
+  done < <("$python" -c '
+import json
+from pathlib import Path
+matrix = json.loads(Path("apps/investigator/faultglass/engine-matrix.json").read_text())
+for engine in matrix["engines"]:
+    print(engine["imageRef"])
+')
+  echo 'Setup complete. Run ./deploy/local start for a session without a model key.'
+}
+
+start() {
+  require_tools
+  [[ -x "$python" && -d "$root/apps/web/node_modules" ]] || {
+    echo 'Run ./deploy/local setup first.' >&2; exit 1;
+  }
+  export FAULTGLASS_ARTIFACT_ROOT="${FAULTGLASS_ARTIFACT_ROOT:-$root/apps/investigator/evidence}"
+  export FAULTGLASS_STORAGE_MODE=monitored_local
+  export FAULTGLASS_ALLOWED_ORIGINS=http://127.0.0.1:5173
+  export FAULTGLASS_INVESTIGATION_MODE=deterministic_diagnostic
+  local model_key="${GEMINI_API_KEY:-}"
+  if [[ ${1:-} == --agent ]]; then
+    export FAULTGLASS_INVESTIGATION_MODE=agent
+    export FAULTGLASS_GEMINI_MODEL="${FAULTGLASS_GEMINI_MODEL:-gemini-2.5-flash-lite}"
+    if [[ -z "$model_key" ]]; then
+      read -r -s -p 'Gemini API key (hidden): ' model_key
+      echo
+    fi
+    [[ -n "$model_key" ]] || { echo 'A Gemini key is required for this mode.' >&2; exit 1; }
+  fi
+  "$python" - <<'PY'
+import socket
+import sys
+for port in (8000, 5173):
+    with socket.socket() as connection:
+        try:
+            connection.bind(("127.0.0.1", port))
+        except OSError:
+            sys.exit(f"Port {port} is in use. Stop the earlier app before starting another session.")
+PY
+  docker compose up -d --wait --pull never context
+  cd "$root/apps/investigator"
+  (
+    if [[ "$FAULTGLASS_INVESTIGATION_MODE" == agent ]]; then
+      export GEMINI_API_KEY="$model_key"
+    else
+      unset GEMINI_API_KEY
+    fi
+    "$python" -m faultglass.preflight --bootstrap --worker
+  )
+  env -u GEMINI_API_KEY "$python" -m faultglass.preflight
+
+  pids=()
+  cleanup() {
+    trap - EXIT INT TERM
+    for pid in "${pids[@]}"; do
+      kill -TERM -- "-$pid" 2>/dev/null || true
+    done
+    for pid in "${pids[@]}"; do
+      wait "$pid" 2>/dev/null || true
+    done
+    echo 'App stopped. Evidence and investigation memory are preserved.'
+    echo 'To also stop the memory service: docker compose stop context'
+  }
+  trap cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+
+  (
+    if [[ "$FAULTGLASS_INVESTIGATION_MODE" == agent ]]; then
+      export GEMINI_API_KEY="$model_key"
+    else
+      unset GEMINI_API_KEY
+    fi
+    exec setsid "$python" -m faultglass.worker
+  ) &
+  pids+=("$!")
+  setsid env -u GEMINI_API_KEY "$root/apps/investigator/.venv/bin/uvicorn" \
+    faultglass.api:app --host 127.0.0.1 --port 8000 --workers 1 \
+    --no-proxy-headers --no-access-log &
+  pids+=("$!")
+  setsid env -u GEMINI_API_KEY pnpm --dir "$root/apps/web" dev --host 127.0.0.1 --strictPort &
+  pids+=("$!")
+  echo 'Open http://127.0.0.1:5173 — press Ctrl+C here to stop.'
+  echo "Investigation mode: $FAULTGLASS_INVESTIGATION_MODE"
+  wait -n "${pids[@]}"
+  echo 'An app service exited. Review the message above before restarting.' >&2
+  return 1
+}
+
+case "${1:-}" in
+  setup) [[ $# == 1 ]] || { usage; exit 2; }; setup ;;
+  start)
+    [[ $# == 1 || ( $# == 2 && $2 == --agent ) ]] || { usage; exit 2; }
+    start "${2:-}"
+    ;;
+  -h|--help) usage ;;
+  *) usage; exit 2 ;;
+esac

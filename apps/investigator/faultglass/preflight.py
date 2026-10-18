@@ -81,7 +81,10 @@ def check(*, bootstrap=False, worker=False):
         )
     if worker:
         ready = agent_readiness()
-        if not ready["agentReady"]:
+        if (
+            not ready["agentReady"]
+            and ready["agentReason"] != "deterministic_diagnostic"
+        ):
             issues.append(
                 "Check worker provider configuration: " + ready["agentReason"] + "."
             )

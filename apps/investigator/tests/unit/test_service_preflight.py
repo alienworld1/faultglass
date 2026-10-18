@@ -1,6 +1,8 @@
 from contextlib import nullcontext
 from types import SimpleNamespace
 
+import pytest
+
 from faultglass import gemini, preflight, worker
 
 
@@ -28,13 +30,15 @@ def test_bad_provider_configuration_never_reaches_engines(
     assert "could not start" in capsys.readouterr().err
 
 
-def test_preflight_redacts_dependency_failures(monkeypatch, tmp_path, capsys):
+@pytest.mark.parametrize("mode", ["agent", "deterministic_diagnostic"])
+def test_preflight_redacts_dependency_failures(monkeypatch, tmp_path, capsys, mode):
     from docker.errors import DockerException
 
     from faultglass.context_errors import ContextUnavailable
 
     monkeypatch.setenv("FAULTGLASS_ARTIFACT_ROOT", str(tmp_path))
     monkeypatch.setenv("FAULTGLASS_ALLOWED_ORIGINS", "http://127.0.0.1:8080")
+    monkeypatch.setenv("FAULTGLASS_INVESTIGATION_MODE", mode)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setattr(
         preflight,
@@ -49,7 +53,10 @@ def test_preflight_redacts_dependency_failures(monkeypatch, tmp_path, capsys):
     issues = preflight.check(worker=True)
     assert any("approved images" in issue for issue in issues)
     assert any("persistent context" in issue for issue in issues)
-    assert any("missing_key" in issue for issue in issues)
+    if mode == "agent":
+        assert any("missing_key" in issue for issue in issues)
+    else:
+        assert not any("provider configuration" in issue for issue in issues)
     assert "private key and path" not in str(issues)
     assert str(tmp_path) not in str(issues)
     assert list(tmp_path.iterdir()) == []

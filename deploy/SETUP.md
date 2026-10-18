@@ -1,5 +1,9 @@
 # Setup and operations
 
+For the free public preview with visitor local-run instructions, follow
+[the Vercel guide](VERCEL.md). This document is for hosting the complete backend
+on a persistent Linux machine.
+
 This installation uses host systemd services and Nginx with a private pinned Docker context. It requires persistent Linux/amd64, cgroup v2, Python 3.12+, Docker Engine with Compose v2, Nginx at `/usr/sbin/nginx`, pnpm 11.25.0 and systemd journal namespaces. Use supported Ubuntu packages. Initial resource ceilings below require clean-host measurement before public capacity is chosen. See [verification](../VERIFICATION.md).
 
 ## Prerequisites

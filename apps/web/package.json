@@ -4,13 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "build:showcase": "tsc -b && vite build --mode showcase",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "contracts": "json2ts -i src/contracts/evidence.schema.json -o src/contracts/evidence.ts --bannerComment \"\"",
-    "format:check": "prettier --check src index.html vite.config.ts vitest.config.ts package.json",
-    "format": "prettier --write src index.html vite.config.ts vitest.config.ts package.json",
+    "format:check": "prettier --check src index.html vite.config.ts vitest.config.ts package.json vercel.json",
+    "format": "prettier --write src index.html vite.config.ts vitest.config.ts package.json vercel.json",
     "test": "vitest run"
   },
   "dependencies": {
