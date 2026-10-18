@@ -6,6 +6,45 @@ The investigation history is a FalkorDB graph connecting language features, expe
 
 The current engine pair is FalkorDB C 4.22.0 and Rust commit `b033aec`, pinned by image digest. The built-in case, `CALL db.labels() YIELD label MATCH (n)`, produces a semantic error on the baseline and a crash on the target. These are historical engine snapshots. Disagreement does not establish which engine is correct, and a behavioral grouping does not establish a source-code cause.
 
+## Graph Hacks submission
+
+FaultGlass targets **Agents That Act on Connected Data** and **Agent Memory and Coordination**. The first track is supported by evidence-driven experiment selection and execution; the second by persistent, version-scoped investigation memory reused across sessions. This is a single investigator with durable state, not a multi-agent coordination system.
+
+FalkorDB is the primary and only graph database. Removing the context service prevents browser investigations from being admitted, resumed, or planned. The standalone comparison CLI below is an execution diagnostic; it does not provide the product's investigation workflow or reusable memory. Files hold immutable evidence, while FalkorDB owns the relationships and receipts needed to verify and reuse it.
+
+### Graph model and dependent queries
+
+The [graph model](apps/investigator/CONTEXT.md#graph-model-and-reviewed-queries) defines the node labels, relationships, identities, and provenance. The workflow depends on these checked-in queries:
+
+| Query                                                                                                                                                            | Role in the product                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [runtime-create](apps/investigator/faultglass/queries/runtime-create.cypher), [runtime-commit](apps/investigator/faultglass/queries/runtime-commit.cypher)       | Persist admissions and investigation progress.                                                                |
+| [record-seed](apps/investigator/faultglass/queries/record-seed.cypher)                                                                                           | Connect a case and its fingerprint to observed runs, engines, and differences.                                |
+| [history](apps/investigator/faultglass/queries/history.cypher)                                                                                                   | Traverse shared features, behavioral families, and effective experiments to retrieve relevant prior evidence. |
+| [history-provenance](apps/investigator/faultglass/queries/history-provenance.cypher), [history-paths](apps/investigator/faultglass/queries/history-paths.cypher) | Recover supporting episodes and relationship paths for inspection and verification.                           |
+| [memory-provenance](apps/investigator/faultglass/queries/memory-provenance.cypher) and the [memory writer](apps/investigator/faultglass/memory_writer.py)        | Verify prior contributions and prepare learned evidence for later investigations.                             |
+
+The [planner](apps/investigator/faultglass/planner.py) ranks the retrieved candidates; Gemini can request bounded tools and explain the evidence. Query traversal, execution authority, and evidence verification remain deterministic. The [graph action tests](apps/investigator/tests/context/test_probe_action.py) demonstrate that relevant history changes the executed experiment, removing the connecting relationships removes that influence, and unavailable memory prevents planning and execution.
+
+### Data sources and AI assistance
+
+The built-in reproducer credits [FalkorDB issue #3279](https://github.com/FalkorDB/FalkorDB/issues/3279). Its setup creates synthetic nodes; the related two-label case is a synthetic variation. Other bundled fixtures use small synthetic graphs. Observations and investigation memory are produced by local executions. Startup installs feature and experiment catalogs, not fabricated learned outcomes; synthetic history used by tests is confined to isolated test graphs.
+
+Use only public or synthetic cases you have permission to use. Never import personal, private, login-protected, paywalled, or otherwise restricted information, including in titles, parameters, or metadata. Import validation checks structure, not ownership or permission. The model-sharing allowlist is a separate safeguard: only exact approved built-in cases and approved connected history may be sent to Gemini. Exclusion from Gemini does not prevent local persistence, so it does not make restricted input suitable for this workspace.
+
+**AI assistance:** I used OpenAI Codex to help write code, review changes, improve the documentation, and run tests. Gemini is part of FaultGlass itself: it requests investigation tools and interprets the evidence with citations. I’m responsible for the code I submit and for understanding and explaining how it works.
+
+### Complete the submission
+
+The [event rules](https://www.wemakedevs.org/hackathons/falkordb/rules) and [Code of Conduct](https://www.wemakedevs.org/coc) govern participation. Before submitting:
+
+- Make the [source repository](https://github.com/alienworld1/faultglass) public and confirm it opens while signed out.
+- Upload a working demo video and include its accessible URL in the submission. The [demo walkthrough](demo/script.md) accompanies the local workflow; a script alone is not a video submission.
+- Name both tracks above in the submission and include this README's complete local setup if a live deployment is unavailable.
+- Confirm team registration, at most four members, and one team per participant; disclose any additional AI tools used.
+- Confirm that main coding and design began after October 15, 2026, 12:01 AM IST, and submit before October 18, 2026, 11:59 PM IST. The earliest recorded repository commit is October 15 at 12:25 AM IST; commit timestamps alone cannot establish when work actually began.
+- Review the code and rehearse explaining a retrieved graph path, its effect on an experiment, and the resulting verified evidence.
+
 ## Run locally
 
 For a free public website, deploy the [browser preview to Vercel](deploy/VERCEL.md).

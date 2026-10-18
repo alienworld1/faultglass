@@ -49,16 +49,18 @@ export default function CaseIntake() {
           Case preparation
         </p>
         <h1 className="text-2xl font-semibold">
-          One repro in. The whole fault family out.
+          Turn a failing query into verified evidence.
         </h1>
         <p className="mt-4 text-base leading-relaxed">
           Start with a failing Cypher query. Follow graph-guided experiments,
-          inspect a smaller verified reproducer, and download regression
-          coverage.
+          inspect reduction attempts, and download a regression-test scaffold
+          when the evidence supports an export.
         </p>
         <p className="mt-4 text-sm text-muted">
           Investigations and their evidence are visible in this workspace. Use
-          public or synthetic cases.
+          only public or synthetic cases you have permission to use. Do not
+          include personal, private, login-protected, paywalled, or restricted
+          information in queries, parameters, titles, or notes.
         </p>
       </div>
       <RecentInvestigations />
@@ -84,7 +86,7 @@ export default function CaseIntake() {
           </label>
           <input
             id="case-file"
-            aria-describedby="validation-errors"
+            aria-describedby="case-data-help validation-errors"
             type="file"
             accept=".json,application/json"
             className="mt-2 min-h-11 w-full min-w-0 text-sm"
@@ -93,6 +95,12 @@ export default function CaseIntake() {
               event.target.value = "";
             }}
           />
+          <p id="case-data-help" className="mt-3 text-sm text-muted">
+            Imported cases are saved locally with investigation evidence.
+            Validation checks the file format, not permission to use its data.
+            Only approved built-in cases and approved connected history can be
+            shared with Gemini.
+          </p>
           <label htmlFor="engine-pair" className="mt-6 block font-semibold">
             Engine pair
           </label>
